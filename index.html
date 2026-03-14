@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DP3 · Defense Personal Property Program</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Lato:wght@300;400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06090f;
+  --surface: #0d1520;
+  --surface2: #121e2e;
+  --border: rgba(255,255,255,0.07);
+  --gold: #d4a843;
+  --gold-dim: rgba(212,168,67,0.15);
+  --gold-glow: rgba(212,168,67,0.4);
+  --blue: #2e6fad;
+  --blue-bright: #4a9fd4;
+  --red: #b03030;
+  --green: #1f7a4e;
+  --white: #e8ecf0;
+  --muted: #6b7c93;
+  --text: #c0cad8;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lato', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── ANIMATED GRID BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(46,111,173,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46,111,173,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ── TOP FLAG STRIPE ── */
+.flag-stripe {
+  height: 5px;
+  background: repeating-linear-gradient(90deg,
+    #b22234 0, #b22234 7.69%,
+    #fff 7.69%, #fff 15.38%,
+    #3c3b6e 15.38%, #3c3b6e 23.08%,
+    #b22234 23.08%, #b22234 30.77%,
+    #fff 30.77%, #fff 38.46%,
+    #3c3b6e 38.46%, #3c3b6e 46.15%,
+    #b22234 46.15%, #b22234 53.85%,
+    #fff 53.85%, #fff 61.54%,
+    #3c3b6e 61.54%, #3c3b6e 69.23%,
+    #b22234 69.23%, #b22234 76.92%,
+    #fff 76.92%, #fff 84.62%,
+    #3c3b6e 84.62%, #3c3b6e 92.31%,
+    #b22234 92.31%, #b22234 100%
+  );
+}
+
+/* ── HEADER ── */
+header {
+  position: relative;
+  z-index: 10;
+  background: linear-gradient(180deg, #0a1220 0%, var(--surface) 100%);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+/* Pentagon SVG emblem */
+.emblem {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  animation: emblemPulse 4s ease-in-out infinite;
+}
+
+@keyframes emblemPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(212,168,67,0.4)); }
+  50% { filter: drop-shadow(0 0 14px rgba(212,168,67,0.7)); }
+}
+
+.header-content { flex: 1; }
+
+.header-kicker {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.2s;
+}
+
+.header-title {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: clamp(24px, 3.5vw, 44px);
+  color: var(--white);
+  letter-spacing: 2px;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.35s;
+}
+
+.header-title em {
+  font-style: normal;
+  color: var(--gold);
+}
+
+.header-sub {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.5s;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.header-badge {
+  flex-shrink: 0;
+  background: rgba(212,168,67,0.08);
+  border: 1px solid rgba(212,168,67,0.3);
+  padding: 10px 18px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn 0.6s ease forwards 0.6s;
+}
+
+.badge-top {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.badge-bottom {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 2px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── NAV TABS ── */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(6,9,15,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+  padding: 0 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-inner::-webkit-scrollbar { display: none; }
+
+.nav-tab {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 16px 22px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+}
+
+.nav-tab:hover { color: var(--white); }
+
+.nav-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* ── MAIN CONTENT ── */
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── SECTIONS ── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── OVERVIEW SECTION ── */
+.overview-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease;
+}
+
+.hero-panel {
+  background: var(--surface);
+  padding: 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-panel::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -10px; right: 16px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 100px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.02);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.hero-panel-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-panel-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-dim), transparent);
+}
+
+.hero-panel h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+
+.hero-panel p {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.info-list {
+  list-style: none;
+  margin-top: 14px;
+}
+
+.info-list li {
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 6px 0 6px 20px;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+.info-list li:last-child { border-bottom: none; }
+
+.info-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+  font-size: 11px;
+  top: 8px;
+}
+
+/* STAT ROW */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease 0.1s both;
+}
+
+.stat-box {
+  background: var(--surface);
+  padding: 24px 20px;
+  text-align: center;
+  border-top: 2px solid var(--border);
+  transition: border-top-color 0.2s;
+}
+
+.stat-box:hover { border-top-color: var(--gold); }
+
+.stat-num {
+  font-family: 'Oswald', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  display: block;
+  line-height: 1;
+}
+
+.stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 6px;
+  display: block;
+}
+
+/* ALERT BOX */
+.alert-box {
+  background: linear-gradient(135deg, rgba(176,48,48,0.12), rgba(176,48,48,0.06));
+  border: 1px solid rgba(176,48,48,0.4);
+  border-left: 4px solid var(--red);
+  padding: 18px 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease 0.2s both;
+}
+
+.alert-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+.alert-box p { font-size: 13.5px; line-height: 1.6; }
+
+.alert-box strong { color: var(--white); }
+
+/* ── RESOURCES SECTION ── */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2px;
+  animation: fadeIn 0.5s ease;
+}
+
+.res-card {
+  background: var(--surface);
+  padding: 28px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.res-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--gold-dim), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.res-card:hover {
+  background: var(--surface2);
+}
+
+.res-card:hover::before { opacity: 1; }
+
+.res-card:nth-child(1) { border-left-color: var(--gold); }
+.res-card:nth-child(2) { border-left-color: var(--blue-bright); }
+.res-card:nth-child(3) { border-left-color: #4caf8a; }
+.res-card:nth-child(4) { border-left-color: #e09c3a; }
+.res-card:nth-child(5) { border-left-color: #9b72cf; }
+.res-card:nth-child(6) { border-left-color: var(--red); }
+.res-card:nth-child(7) { border-left-color: #e67e22; }
+.res-card:nth-child(8) { border-left-color: var(--blue); }
+.res-card:nth-child(9) { border-left-color: #16a085; }
+.res-card:nth-child(10) { border-left-color: #c0392b; }
+.res-card:nth-child(11) { border-left-color: #2980b9; }
+
+.res-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.res-icon { font-size: 26px; }
+
+.res-card h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.res-card p {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  flex: 1;
+}
+
+.res-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-top: 4px;
+  transition: gap 0.2s;
+}
+
+.res-card:hover .res-cta { gap: 12px; }
+
+/* ── COUNSELING SECTION ── */
+.counseling-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 28px;
+  animation: fadeIn 0.5s ease;
+}
+
+.counseling-intro h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.counseling-intro p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  max-width: 680px;
+}
+
+.module-badge {
+  background: linear-gradient(135deg, var(--gold), #b8882a);
+  color: #06090f;
+  padding: 12px 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.module-badge .mb-top {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.module-badge .mb-val {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  display: block;
+}
+
+.module-badge .mb-sub {
+  font-size: 10px;
+  display: block;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+/* IFRAME WRAPPER */
+.iframe-shell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: fadeIn 0.5s ease 0.15s both;
+}
+
+.iframe-toolbar {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toolbar-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.dot-r { background: #b22222; }
+.dot-y { background: #d4a843; }
+.dot-g { background: #1f7a4e; }
+
+.toolbar-url {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  padding: 5px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  border-radius: 2px;
+}
+
+.toolbar-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-transform: uppercase;
+  background: rgba(31,122,78,0.15);
+  border: 1px solid rgba(31,122,78,0.3);
+  padding: 3px 10px;
+}
+
+.iframe-shell iframe {
+  width: 100%;
+  height: 700px;
+  border: none;
+  display: block;
+}
+
+.iframe-note {
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.iframe-note a {
+  color: var(--gold);
+  text-decoration: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.iframe-note a:hover { text-decoration: underline; }
+
+/* Module topics */
+.module-topics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin-top: 2px;
+  animation: fadeIn 0.5s ease 0.3s both;
+}
+
+.topic-card {
+  background: var(--surface);
+  padding: 20px 22px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.topic-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+
+.topic-card h4 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.topic-card p {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── SECTION HEADER ── */
+.sec-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.sec-heading h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.sec-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212,168,67,0.4), transparent);
+}
+
+.sec-code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  background: var(--gold-dim);
+  border: 1px solid rgba(212,168,67,0.25);
+  padding: 4px 10px;
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-left p {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-links a:hover { color: var(--gold); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .header-inner { padding: 20px 24px; }
+  main { padding: 32px 20px; }
+  .overview-hero { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .module-topics { grid-template-columns: 1fr 1fr; }
+  .counseling-header { grid-template-columns: 1fr; }
+  footer { padding: 20px 24px; }
+  .nav-inner { padding: 0 20px; }
+  .nav-tab { padding: 14px 14px; font-size: 11px; }
+}
+
+@media (max-width: 560px) {
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .module-topics { grid-template-columns: 1fr; }
+  .header-badge { display: none; }
+  .emblem { width: 60px; height: 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="flag-stripe"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <!-- Emblem SVG -->
+    <div class="emblem">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#1a3a5c"/>
+            <stop offset="100%" stop-color="#06090f"/>
+          </radialGradient>
+        </defs>
+        <!-- Pentagon shape -->
+        <polygon points="50,5 95,36 77,88 23,88 5,36" fill="url(#g1)" stroke="#d4a843" stroke-width="1.5"/>
+        <!-- Inner pentagon -->
+        <polygon points="50,16 84,40 71,78 29,78 16,40" fill="none" stroke="rgba(212,168,67,0.3)" stroke-width="0.8"/>
+        <!-- Star -->
+        <polygon points="50,22 56,38 73,38 59,48 64,64 50,54 36,64 41,48 27,38 44,38" fill="#d4a843"/>
+        <!-- Text arc simulation using two lines -->
+        <text x="50" y="94" text-anchor="middle" font-size="6.5" fill="#d4a843" font-family="Share Tech Mono,monospace" letter-spacing="1">DP3 · DoD</text>
+      </svg>
+    </div>
+    <div class="header-content">
+      <div class="header-kicker">U.S. Transportation Command · USTRANSCOM</div>
+      <div class="header-title">Defense <em>Personal Property</em> Program</div>
+      <div class="header-sub">DP3 · Official Resource Portal for Military &amp; Civilian Service Members</div>
+    </div>
+    <div class="header-badge">
+      <span class="badge-top">Program</span>
+      <span class="badge-bottom">DP3</span>
+      <span class="badge-top" style="margin-top:3px">USTRANSCOM</span>
+    </div>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<nav class="nav-bar" role="navigation">
+  <div class="nav-inner">
+    <button class="nav-tab active" onclick="showSection('overview', this)">📋 Overview</button>
+    <button class="nav-tab" onclick="showSection('counseling', this)">🎓 Virtual Counseling</button>
+    <button class="nav-tab" onclick="showSection('resources', this)">📂 Resources &amp; Fact Sheets</button>
+    <button class="nav-tab" onclick="showSection('tools', this)">🛠 Tools &amp; Offices</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ════════════════════ OVERVIEW ════════════════════ -->
+  <section class="section active" id="overview">
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <span class="stat-num">300K+</span>
+        <span class="stat-label">Moves per Year</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">170+</span>
+        <span class="stat-label">Countries Served</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">PPM</span>
+        <span class="stat-label">Self-Move Option</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">DPS</span>
+        <span class="stat-label">Online Booking System</span>
+      </div>
+    </div>
+
+    <div class="alert-box">
+      <div class="alert-icon">⚠️</div>
+      <p><strong>Important:</strong> All personal property moves must be authorized through your gaining/losing unit. Schedule your shipment through the Defense Personal Property System (DPS) or contact your Transportation Management Office (TMO) / Personal Property Office (PPO) as early as possible — ideally 8–10 weeks before your move date.</p>
+    </div>
+
+    <div class="sec-heading">
+      <span class="sec-code">SEC-01</span>
+      <h2>Program Overview</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div class="overview-hero">
+      <div class="hero-panel" data-num="01">
+        <div class="hero-panel-label">Mission</div>
+        <h2>What Is the DP3 Program?</h2>
+        <p>The Defense Personal Property Program (DP3) is the DoD's comprehensive system for managing the shipment and storage of household goods (HHG) for active duty military, Reserve/National Guard members, and eligible civilian employees during Permanent Change of Station (PCS), separation, and retirement.</p>
+        <p style="margin-top:12px">Managed by <strong style="color:var(--white)">U.S. Transportation Command (USTRANSCOM)</strong>, DP3 connects service members with approved Transportation Service Providers (TSPs) through the Defense Personal Property System (DPS) — an online portal for scheduling, tracking, and managing all shipment activity.</p>
+      </div>
+      <div class="hero-panel" data-num="02">
+        <div class="hero-panel-label">Entitlements</div>
+        <h2>What Are You Entitled To?</h2>
+        <ul class="info-list">
+          <li><strong style="color:var(--white)">Household Goods (HHG)</strong> — Government-arranged full-service move based on rank/grade and dependency status</li>
+          <li><strong style="color:var(--white)">Personally Procured Move (PPM/DITY)</strong> — Self-move with incentive payment up to 100% of Government Constructive Cost</li>
+          <li><strong style="color:var(--white)">Unaccompanied Baggage (UB)</strong> — Separate air-expedited shipment for essential items needed immediately</li>
+          <li><strong style="color:var(--white)">Non-Temporary Storage (NTS)</strong> — Long-term storage during overseas tours and certain assignments</li>
+          <li><strong style="color:var(--white)">Storage-in-Transit (SIT)</strong> — Up to 90 days temporary storage at origin or destination</li>
+          <li><strong style="color:var(--white)">Pro-Gear</strong> — Additional weight allowance for professional books, papers, and equipment</li>
+        </ul>
+      </div>
+      <div class="hero-panel" data-num="03">
+        <div class="hero-panel-label">Move Types</div>
+        <h2>Types of Shipments</h2>
+        <ul class="info-list">
+          <li><strong style="color:var(--white)">Full-Service Move</strong> — TSP packs, loads, transports, and delivers your goods</li>
+          <li><strong style="color:var(--white)">Partial PPM</strong> — Move some items yourself; TSP handles the rest</li>
+          <li><strong style="color:var(--white)">Full PPM</strong> — You arrange and complete the entire move yourself</li>
+          <li><strong style="color:var(--white)">CONUS moves</strong> — Continental U.S. shipments via ground or containerized transport</li>
+          <li><strong style="color:var(--white)">OCONUS moves</strong> — Overseas moves via authorized international TSPs</li>
+          <li><strong style="color:var(--white)">Express Shipments</strong> — Rapid delivery option for select items when needed quickly</li>
+        </ul>
+      </div>
+      <div class="hero-panel" data-num="04">
+        <div class="hero-panel-label">Your Responsibilities</div>
+        <h2>Key Service Member Actions</h2>
+        <ul class="info-list">
+          <li>Contact your TMO/PPO as soon as orders are received</li>
+          <li>Create a DPS account and submit move requests online</li>
+          <li>Inventory high-value items and document with photos/video before packing</li>
+          <li>Be present or have a designated representative for pickup and delivery</li>
+          <li>Annotate exceptions on the inventory at delivery — never sign a blank form</li>
+          <li>File loss/damage claims within 9 months of delivery</li>
+          <li>File inconvenience claims if TSP misses pickup or delivery window</li>
+        </ul>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════ VIRTUAL COUNSELING ════════════════════ -->
+  <section class="section" id="counseling">
+
+    <div class="counseling-header">
+      <div class="counseling-intro">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">MODULE · VCOUNSEL-01</div>
+        <h2>Virtual Personal Property Counseling</h2>
+        <p>Complete your official virtual pre-move counseling through the USTRANSCOM-authorized training platform below. This module covers your entitlements, DPS system walk-through, packaging requirements, claims procedures, and special items guidance. Completion may be required before your TMO/PPO processes your shipment request.</p>
+      </div>
+      <div class="module-badge">
+        <span class="mb-top">Official</span>
+        <span class="mb-val">VC</span>
+        <span class="mb-sub">Virtual Counseling</span>
+      </div>
+    </div>
+
+    <div class="iframe-shell">
+      <div class="iframe-toolbar">
+        <div class="toolbar-dots">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+        </div>
+        <div class="toolbar-url">https://usjs-pp.teachable.com/</div>
+        <div class="toolbar-tag">🔒 Secure · .mil Authorized</div>
+      </div>
+      <iframe
+        src="https://usjs-pp.teachable.com/"
+        title="USTRANSCOM Personal Property Virtual Counseling Module"
+        allow="fullscreen"
+        loading="lazy"
+      ></iframe>
+      <div class="iframe-note">
+        <span>⚠️</span>
+        <span>If the module does not load, open it directly: <a href="https://usjs-pp.teachable.com/" target="_blank" rel="noopener">usjs-pp.teachable.com ↗</a> &nbsp;·&nbsp; Use your CAC or assigned credentials to log in if prompted.</span>
+      </div>
+    </div>
+
+    <div class="module-topics">
+      <div class="topic-card">
+        <div class="topic-icon">📋</div>
+        <div>
+          <h4>Entitlements Briefing</h4>
+          <p>Weight allowances, pro-gear, UB, NTS, SIT, and PPM incentive payment calculations by grade.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">🖥️</div>
+        <div>
+          <h4>DPS System Walk-Through</h4>
+          <p>How to create a move request, select a TSP, and manage your shipment online in DPS.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">📦</div>
+        <div>
+          <h4>Packing & Containerization</h4>
+          <p>TSP packing standards, prohibited items, high-value inventory documentation, and containerization rules.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">⚖️</div>
+        <div>
+          <h4>Weight Allowances</h4>
+          <p>How to estimate your shipment weight, avoiding excess costs, and the weight ticket process for PPM moves.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">🔒</div>
+        <div>
+          <h4>Special Items & Restrictions</h4>
+          <p>Vehicles, firearms, plants, hazardous materials, and items requiring special handling or approval.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">📝</div>
+        <div>
+          <h4>Claims & Disputes</h4>
+          <p>Filing loss/damage claims, inconvenience claims, timelines, required documentation, and escalation paths.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════ RESOURCES ════════════════════ -->
+  <section class="section" id="resources">
+
+    <div class="sec-heading">
+      <span class="sec-code">SEC-03</span>
+      <h2>Official Resources &amp; Fact Sheets</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div class="resources-grid">
+
+      <a href="https://www.militaryonesource.mil/moving-pcs/moving-personal-property/resources/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">MilitaryOneSource · Hub</div>
+        <div class="res-icon">📦</div>
+        <h3>Personal Property Moving Resources</h3>
+        <p>The official MilitaryOneSource hub for all PCS moving and personal property resources, guides, tools, and program information.</p>
+        <div class="res-cta">Access Hub →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/resources/gov/defense-personal-property-system/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">USTRANSCOM · System</div>
+        <div class="res-icon">🖥️</div>
+        <h3>Defense Personal Property System (DPS)</h3>
+        <p>Log in to DPS to create move requests, select your TSP, schedule pickup and delivery dates, and track your shipment status.</p>
+        <div class="res-cta">Go to DPS →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personal-property-quick-reference-guide-d1255/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Reference Guide</div>
+        <div class="res-icon">📘</div>
+        <h3>Personal Property Quick Reference Guide</h3>
+        <p>Condensed, actionable guide covering entitlements, move types, scheduling timelines, TSP responsibilities, and program contacts.</p>
+        <div class="res-cta">View Guide →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personal-property-claims-fact-sheet-d1244/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Claims</div>
+        <div class="res-icon">📄</div>
+        <h3>Personal Property Claims</h3>
+        <p>How to file claims for lost, damaged, or destroyed property — including valuation methods, timelines (9-month deadline), and required documentation.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/inconvenience-claims-fact-sheet-d1237/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Claims</div>
+        <div class="res-icon">⚠️</div>
+        <h3>Inconvenience Claims</h3>
+        <p>Reimbursement when your TSP fails to pick up or deliver on the promised date, including lodging, meals, and out-of-pocket expense coverage.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://download.militaryonesource.mil/12038/MOS/Factsheets/FactSheet-MoldAndYourPersonalProperty.pdf" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · PDF</div>
+        <div class="res-icon">🍃</div>
+        <h3>Mold &amp; Your Personal Property</h3>
+        <p>Identifying, preventing, and addressing mold damage during storage or shipment, including what to do at delivery and how to file related claims.</p>
+        <div class="res-cta">Download PDF →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personally-procured-moves-and-rogue-operators-fact-sheet-d1375/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · PPM</div>
+        <div class="res-icon">🚛</div>
+        <h3>PPM &amp; Rogue Operators</h3>
+        <p>Everything about Personally Procured Moves (PPM/DITY), incentive payments, and how to identify and avoid unlicensed/rogue movers.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/7-day-scheduling-window-fact-sheet-d1258/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Scheduling</div>
+        <div class="res-icon">📅</div>
+        <h3>7-Day Scheduling Window</h3>
+        <p>How the 7-day pickup and delivery window works, your rights within that window, and how to request a specific required delivery date (RDD).</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/containerization-of-your-personal-property-fact-sheet-d1260/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Shipment</div>
+        <div class="res-icon">🗃️</div>
+        <h3>Containerization of Personal Property</h3>
+        <p>How containerized shipments work, TSP packing standards, what to expect on pack day, and how containerization reduces transit damage.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+    </div>
+
+  </section>
+
+  <!-- ════════════════════ TOOLS & OFFICES ════════════════════ -->
+  <section class="section" id="tools">
+
+    <div class="sec-heading">
+      <span class="sec-code">SEC-04</span>
+      <h2>Tools &amp; Office Locator</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:2px">
+
+      <a href="https://www.ustranscom.mil/dp3/weightestimator.cfm" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+        <div class="hero-panel" style="height:100%;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div class="hero-panel-label">USTRANSCOM Tool</div>
+          <div style="font-size:36px;margin-bottom:12px">⚖️</div>
+          <h2>Household Goods Weight Estimator</h2>
+          <p>Use USTRANSCOM's official online tool to estimate the total weight of your household goods before your move. Helps you avoid exceeding your weight allowance and incurring excess costs.</p>
+          <div style="margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">Open Estimator →</div>
+        </div>
+      </a>
+
+      <a href="https://installations.militaryonesource.mil/search?program-service=39/view-by=ALL" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+        <div class="hero-panel" style="height:100%;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div class="hero-panel-label">Installation Locator</div>
+          <div style="font-size:36px;margin-bottom:12px">📍</div>
+          <h2>Find Your TMO / PPO</h2>
+          <p>Locate the Transportation Management Office (TMO) or Personal Property Office (PPO) at any installation worldwide. Get contact info, hours, and services offered to start your move counseling.</p>
+          <div style="margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">Find Office →</div>
+        </div>
+      </a>
+
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px">
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · Claims</div>
+        <h2 style="font-size:16px">Document Everything</h2>
+        <p style="font-size:13px">Before pack-out, photograph and video every item of value. Create a written inventory. This evidence is essential for claims and significantly speeds up TSP reimbursement.</p>
+      </div>
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · Delivery</div>
+        <h2 style="font-size:16px">Never Sign Blank</h2>
+        <p style="font-size:13px">At delivery, always annotate any damage or missing items on the DD Form 1840 before signing. Signing a clean form waives your ability to dispute those items later.</p>
+      </div>
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · PPM</div>
+        <h2 style="font-size:16px">Get Weight Tickets</h2>
+        <p style="font-size:13px">For PPM moves, obtain certified weight tickets before and after loading at a certified scale. These are required to claim your incentive payment from the government.</p>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  <div class="footer-left">
+    <p>U.S. DEPARTMENT OF DEFENSE · DEFENSE PERSONAL PROPERTY PROGRAM · DP3</p>
+    <p style="margin-top:4px;opacity:0.5">All links direct to official U.S. Government .mil and authorized training platforms.</p>
+  </div>
+  <div class="footer-links">
+    <a href="https://www.militaryonesource.mil" target="_blank" rel="noopener">MilitaryOneSource</a>
+    <a href="https://www.ustranscom.mil" target="_blank" rel="noopener">USTRANSCOM</a>
+    <a href="https://www.move.mil" target="_blank" rel="noopener">Move.mil</a>
+    <a href="https://usjs-pp.teachable.com/" target="_blank" rel="noopener">Virtual Counseling</a>
+  </div>
+</footer>
+<div class="flag-stripe"></div>
+
+<script>
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
