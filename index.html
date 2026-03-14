@@ -3,1564 +3,1125 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DTSS – TSP Performance Monitor</title>
+<title>DP3 · Defense Personal Property Program</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Lato:wght@300;400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --green: #00ff88;
-    --green-dim: rgba(0,255,136,0.12);
-    --green-glow: rgba(0,255,136,0.25);
-    --bg: #080d17;
-    --bg2: rgba(255,255,255,0.025);
-    --border: rgba(0,255,136,0.13);
-    --text: #dde5f0;
-    --text-dim: rgba(255,255,255,0.4);
-    --red: #dc2626; --red-bg: rgba(220,38,38,0.15);
-    --orange: #ea580c; --orange-bg: rgba(234,88,12,0.15);
-    --yellow: #ca8a04; --yellow-bg: rgba(202,138,4,0.15);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Courier New', Courier, monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image:
-      linear-gradient(rgba(0,180,90,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,180,90,0.025) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none; z-index: 0;
-  }
-  #scanline {
-    position: fixed; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--green), transparent);
-    z-index: 200;
-    animation: scan 3s ease-in-out infinite;
-  }
-  @keyframes scan { 0%,100%{opacity:.3} 50%{opacity:1} }
-  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes glowPulse { 0%,100%{box-shadow:0 0 6px rgba(0,255,120,.2)} 50%{box-shadow:0 0 22px rgba(0,255,120,.6)} }
-  @keyframes toastIn { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
-  .fade { animation: fadeUp .35s ease both; }
+:root {
+  --bg: #06090f;
+  --surface: #0d1520;
+  --surface2: #121e2e;
+  --border: rgba(255,255,255,0.07);
+  --gold: #d4a843;
+  --gold-dim: rgba(212,168,67,0.15);
+  --gold-glow: rgba(212,168,67,0.4);
+  --blue: #2e6fad;
+  --blue-bright: #4a9fd4;
+  --red: #b03030;
+  --green: #1f7a4e;
+  --white: #e8ecf0;
+  --muted: #6b7c93;
+  --text: #c0cad8;
+}
 
-  #app { max-width: 840px; margin: 0 auto; padding: 0 16px 80px; position: relative; z-index: 1; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
-  /* HEADER */
-  #header {
-    padding: 18px 0 14px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 22px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .header-bar { width: 7px; height: 32px; background: var(--green); flex-shrink: 0; }
-  .header-titles { flex: 1; }
-  .header-sub { font-size: 10px; letter-spacing: 3px; color: var(--green); opacity: .65; margin-bottom: 2px; }
-  .header-main { font-size: 16px; font-weight: bold; letter-spacing: 2px; color: #fff; }
+html { scroll-behavior: smooth; }
 
-  /* BUTTONS */
-  .btn {
-    border: none; padding: 11px 26px;
-    font-family: 'Courier New', monospace; font-weight: bold;
-    font-size: 13px; letter-spacing: 1.5px; cursor: pointer;
-    transition: all .2s;
-    clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
-  }
-  .btn-g { background: linear-gradient(135deg,#00ff88,#00cc6a); color: #080d17; }
-  .btn-g:hover { background: linear-gradient(135deg,#33ffaa,#00ff88); transform: translateY(-1px); }
-  .btn-g:disabled { opacity: .3; cursor: not-allowed; transform: none; }
-  .btn-r { background: linear-gradient(135deg,#dc2626,#991b1b); color: #fff; }
-  .btn-r:hover { filter: brightness(1.2); }
-  .btn-r:disabled { opacity: .3; cursor: not-allowed; }
-  .btn-o {
-    background: transparent; color: var(--green);
-    border: 1px solid rgba(0,255,136,.4);
-    padding: 9px 20px; font-family: 'Courier New', monospace;
-    font-size: 12px; letter-spacing: 1px; cursor: pointer;
-    transition: all .2s; clip-path: none;
-  }
-  .btn-o:hover { background: rgba(0,255,136,.08); }
-  .btn-sm { padding: 5px 12px; font-size: 11px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lato', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
 
-  /* INPUTS */
-  input, select, textarea {
-    background: rgba(0,255,136,.04);
-    border: 1px solid rgba(0,255,136,.18);
-    color: var(--text);
-    padding: 9px 13px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    width: 100%;
-    outline: none;
-    transition: border .2s;
-  }
-  input:focus, select:focus, textarea:focus {
-    border-color: var(--green);
-    box-shadow: 0 0 8px rgba(0,255,136,.2);
-  }
-  select option { background: #080d17; }
-  textarea { resize: vertical; }
-  .field-label {
-    font-size: 9px; color: rgba(0,255,136,.6);
-    letter-spacing: 1px; margin-bottom: 3px; display: block;
-  }
-  .field { margin-bottom: 10px; }
+/* ── ANIMATED GRID BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(46,111,173,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(46,111,173,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  z-index: 0;
+  pointer-events: none;
+}
 
-  /* CARDS */
-  .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    padding: 20px; margin-bottom: 18px;
-  }
-  .card-title {
-    font-size: 10px; color: var(--green);
-    letter-spacing: 2px; margin-bottom: 14px;
-  }
+/* ── TOP FLAG STRIPE ── */
+.flag-stripe {
+  height: 5px;
+  background: repeating-linear-gradient(90deg,
+    #b22234 0, #b22234 7.69%,
+    #fff 7.69%, #fff 15.38%,
+    #3c3b6e 15.38%, #3c3b6e 23.08%,
+    #b22234 23.08%, #b22234 30.77%,
+    #fff 30.77%, #fff 38.46%,
+    #3c3b6e 38.46%, #3c3b6e 46.15%,
+    #b22234 46.15%, #b22234 53.85%,
+    #fff 53.85%, #fff 61.54%,
+    #3c3b6e 61.54%, #3c3b6e 69.23%,
+    #b22234 69.23%, #b22234 76.92%,
+    #fff 76.92%, #fff 84.62%,
+    #3c3b6e 84.62%, #3c3b6e 92.31%,
+    #b22234 92.31%, #b22234 100%
+  );
+}
 
-  /* GRID */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .col-span-2 { grid-column: 1 / -1; }
+/* ── HEADER ── */
+header {
+  position: relative;
+  z-index: 10;
+  background: linear-gradient(180deg, #0a1220 0%, var(--surface) 100%);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
 
-  /* PHASE BUTTONS */
-  .phase-grid { display: flex; gap: 14px; margin-bottom: 28px; }
-  .phase-btn {
-    flex: 1; padding: 22px 16px;
-    border: 1px solid rgba(0,255,136,.18);
-    background: rgba(0,255,136,.02);
-    cursor: pointer; text-align: center;
-    transition: all .3s; color: var(--text);
-    font-family: 'Courier New', monospace;
-  }
-  .phase-btn:hover {
-    border-color: var(--green);
-    background: rgba(0,255,136,.09);
-    box-shadow: 0 0 18px rgba(0,255,136,.12);
-  }
-  .phase-icon { font-size: 30px; margin-bottom: 10px; }
-  .phase-label { font-size: 13px; font-weight: bold; color: var(--green); letter-spacing: 1px; margin-bottom: 6px; }
-  .phase-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
 
-  /* INFRACTION ROWS */
-  .inf-row {
-    display: flex; gap: 12px; align-items: flex-start;
-    padding: 13px; border: 1px solid rgba(255,255,255,.055);
-    margin-bottom: 7px; cursor: pointer; transition: all .2s;
-  }
-  .inf-row:hover { background: rgba(0,255,136,.035); border-color: rgba(0,255,136,.22); }
-  .inf-row.selected { border-color: rgba(0,255,136,.45); background: rgba(0,255,136,.055); }
-  .chk {
-    width: 17px; height: 17px; flex-shrink: 0; margin-top: 2px;
-    border: 2px solid rgba(0,255,136,.35);
-    display: flex; align-items: center; justify-content: center;
-    transition: all .2s;
-  }
-  .chk.on { background: var(--green); border-color: var(--green); }
-  .chk.on::after { content: '✓'; font-size: 11px; color: #080d17; font-weight: bold; }
-  .inf-content { flex: 1; }
-  .inf-meta { display: flex; gap: 7px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
-  .inf-code { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: 1px; }
-  .tag {
-    display: inline-block; padding: 2px 8px;
-    font-size: 10px; letter-spacing: 1px; border: 1px solid;
-    font-family: 'Courier New', monospace;
-  }
-  .inf-label { font-size: 13px; color: rgba(255,255,255,.65); }
-  .inf-row.selected .inf-label { color: #fff; }
-  .inf-notes { margin-top: 9px; }
+.header-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
 
-  /* PHOTO UPLOAD */
-  .photo-upload-area {
-    border: 2px dashed rgba(0,255,136,.25);
-    background: rgba(0,255,136,.02);
-    padding: 20px; text-align: center;
-    cursor: pointer; transition: all .2s; margin-top: 10px;
-  }
-  .photo-upload-area:hover { border-color: rgba(0,255,136,.5); background: rgba(0,255,136,.05); }
-  .photo-upload-area.drag-over { border-color: var(--green); background: rgba(0,255,136,.08); }
-  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-top: 10px; }
-  .photo-thumb {
-    position: relative; aspect-ratio: 1;
-    border: 1px solid rgba(0,255,136,.2);
-    overflow: hidden;
-  }
-  .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .photo-thumb .remove-photo {
-    position: absolute; top: 3px; right: 3px;
-    background: rgba(220,38,38,.85); color: #fff;
-    border: none; width: 20px; height: 20px;
-    font-size: 12px; cursor: pointer; display: flex;
-    align-items: center; justify-content: center;
-    font-family: monospace; font-weight: bold;
-  }
-  .photo-caption {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,.7); font-size: 9px;
-    color: var(--green); padding: 2px 4px; text-align: center;
-    letter-spacing: 0.5px;
-  }
+/* Pentagon SVG emblem */
+.emblem {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  animation: emblemPulse 4s ease-in-out infinite;
+}
 
-  /* SEVERITY */
-  .sev-critical { background: var(--red-bg); border-color: var(--red); color: #fca5a5; }
-  .sev-major    { background: var(--orange-bg); border-color: var(--orange); color: #fdba74; }
-  .sev-minor    { background: var(--yellow-bg); border-color: var(--yellow); color: #fde047; }
+@keyframes emblemPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(212,168,67,0.4)); }
+  50% { filter: drop-shadow(0 0 14px rgba(212,168,67,0.7)); }
+}
 
-  /* OFFICE OPTIONS */
-  .off-opt {
-    padding: 13px; border: 1px solid rgba(0,255,136,.1);
-    margin-bottom: 7px; cursor: pointer; transition: all .2s;
-  }
-  .off-opt:hover { border-color: rgba(0,255,136,.3); background: rgba(0,255,136,.04); }
-  .off-opt.selected { border-color: var(--green); background: rgba(0,255,136,.07); }
-  .off-radio {
-    width: 15px; height: 15px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,.2); flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .off-radio.on { border-color: var(--green); }
-  .off-radio.on::after { content: ''; width: 7px; height: 7px; background: var(--green); border-radius: 50%; }
+.header-content { flex: 1; }
 
-  /* AUTO-FILL DISPLAY */
-  .autofill-box {
-    padding: 9px 13px;
-    background: rgba(0,255,136,.06);
-    border: 1px solid rgba(0,255,136,.25);
-    font-size: 12px; color: var(--green); letter-spacing: 0.5px;
-  }
+.header-kicker {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.2s;
+}
 
-  /* SUMMARY CELLS */
-  .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 16px; }
-  .sum-cell {
-    padding: 7px 11px; background: rgba(0,0,0,.3);
-    border-left: 2px solid rgba(0,255,136,.25);
-  }
-  .sum-cell-label { font-size: 9px; color: rgba(0,255,136,.45); letter-spacing: 1px; }
-  .sum-cell-val { font-size: 12px; color: #fff; margin-top: 2px; }
+.header-title {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  font-size: clamp(24px, 3.5vw, 44px);
+  color: var(--white);
+  letter-spacing: 2px;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.35s;
+}
 
-  /* INFRACTION SUMMARY */
-  .inf-summary {
-    padding: 9px 11px;
-    margin-bottom: 7px;
-  }
+.header-title em {
+  font-style: normal;
+  color: var(--gold);
+}
 
-  /* CONFIRM */
-  .confirm-circle {
-    width: 72px; height: 72px; border: 2px solid var(--green);
-    border-radius: 50%; display: flex; align-items: center;
-    justify-content: center; margin: 0 auto 22px;
-    font-size: 32px;
-    animation: glowPulse 2s infinite;
-  }
+.header-sub {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  opacity: 0;
+  animation: slideIn 0.6s ease forwards 0.5s;
+}
 
-  /* ADMIN STATS */
-  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 20px; }
-  .stat-card {
-    padding: 14px; background: rgba(255,255,255,.02);
-    border: 1px solid rgba(255,255,255,.07); text-align: center;
-  }
-  .stat-val { font-size: 22px; font-weight: bold; }
-  .stat-label { font-size: 9px; color: rgba(255,255,255,.35); letter-spacing: 1px; margin-top: 3px; }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 
-  /* REPORT ROWS */
-  .rep-row {
-    padding: 14px; border: 1px solid rgba(255,255,255,.06);
-    margin-bottom: 8px; cursor: pointer; transition: all .2s;
-  }
-  .rep-row:hover { border-color: rgba(0,255,136,.25); background: rgba(0,255,136,.03); }
-  .rep-row.open { border-color: rgba(0,255,136,.4); background: rgba(0,255,136,.06); }
+.header-badge {
+  flex-shrink: 0;
+  background: rgba(212,168,67,0.08);
+  border: 1px solid rgba(212,168,67,0.3);
+  padding: 10px 18px;
+  text-align: center;
+  opacity: 0;
+  animation: fadeIn 0.6s ease forwards 0.6s;
+}
 
-  /* FILTER BUTTONS */
-  .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-  .filter-btn {
-    padding: 4px 12px; background: transparent;
-    border: 1px solid rgba(255,255,255,.15);
-    color: rgba(255,255,255,.5); font-size: 11px;
-    cursor: pointer; letter-spacing: 1px;
-    font-family: 'Courier New', monospace; transition: all .2s;
-  }
-  .filter-btn.active {
-    background: rgba(0,255,136,.15);
-    border-color: var(--green); color: var(--green);
-  }
-  .filter-sep { width: 1px; height: 20px; background: rgba(255,255,255,.1); }
+.badge-top {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  display: block;
+  margin-bottom: 3px;
+}
 
-  /* TOAST */
-  #toast {
-    position: fixed; top: 20px; right: 20px; z-index: 999;
-    padding: 12px 20px; font-size: 13px; letter-spacing: 1px;
-    animation: toastIn .3s ease; display: none;
-  }
-  #toast.show { display: block; }
-  #toast.success { background: rgba(0,255,136,.15); border: 1px solid var(--green); color: var(--green); }
-  #toast.warn { background: rgba(234,88,12,.15); border: 1px solid var(--orange); color: #fdba74; }
+.badge-bottom {
+  font-family: 'Oswald', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 2px;
+}
 
-  /* PAGES */
-  .page { display: none; }
-  .page.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
-  /* FLAGGED BADGE */
-  .flagged-badge {
-    background: #dc2626; color: #fff;
-    padding: 3px 10px; font-size: 11px; font-weight: bold; letter-spacing: 1px;
-  }
+/* ── NAV TABS ── */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(6,9,15,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
 
-  /* PHOTO REPORT GRID */
-  .report-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-top: 8px; }
-  .report-photo { border: 1px solid rgba(0,255,136,.2); }
-  .report-photo img { width: 100%; display: block; }
-  .report-photo-label { font-size: 9px; color: var(--text-dim); padding: 3px 5px; background: rgba(0,0,0,.4); }
+.nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+  padding: 0 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
 
-  /* MISC */
-  .divider { width: 1px; height: 20px; background: rgba(255,255,255,.1); }
-  .flex { display: flex; }
-  .flex-center { display: flex; align-items: center; }
-  .gap-8 { gap: 8px; }
-  .gap-12 { gap: 12px; }
-  .ml-auto { margin-left: auto; }
-  .text-right { text-align: right; }
-  .text-center { text-align: center; }
-  .mt-6 { margin-top: 6px; }
-  .mt-10 { margin-top: 10px; }
-  .mt-20 { margin-top: 20px; }
-  .mb-8 { margin-bottom: 8px; }
-  .mb-18 { margin-bottom: 18px; }
-  .mb-22 { margin-bottom: 22px; }
-  .italic { font-style: italic; }
-  .hidden { display: none !important; }
+.nav-inner::-webkit-scrollbar { display: none; }
 
-  @media (max-width: 600px) {
-    .phase-grid { flex-direction: column; }
-    .grid-2 { grid-template-columns: 1fr; }
-    .stat-grid { grid-template-columns: repeat(2, 1fr); }
-    .sum-grid { grid-template-columns: 1fr; }
-  }
+.nav-tab {
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 16px 22px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+}
+
+.nav-tab:hover { color: var(--white); }
+
+.nav-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}
+
+/* ── MAIN CONTENT ── */
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── SECTIONS ── */
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── OVERVIEW SECTION ── */
+.overview-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease;
+}
+
+.hero-panel {
+  background: var(--surface);
+  padding: 36px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-panel::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -10px; right: 16px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 100px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.02);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.hero-panel-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-panel-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-dim), transparent);
+}
+
+.hero-panel h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+
+.hero-panel p {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.info-list {
+  list-style: none;
+  margin-top: 14px;
+}
+
+.info-list li {
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 6px 0 6px 20px;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.5;
+}
+
+.info-list li:last-child { border-bottom: none; }
+
+.info-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+  font-size: 11px;
+  top: 8px;
+}
+
+/* STAT ROW */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease 0.1s both;
+}
+
+.stat-box {
+  background: var(--surface);
+  padding: 24px 20px;
+  text-align: center;
+  border-top: 2px solid var(--border);
+  transition: border-top-color 0.2s;
+}
+
+.stat-box:hover { border-top-color: var(--gold); }
+
+.stat-num {
+  font-family: 'Oswald', sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--gold);
+  display: block;
+  line-height: 1;
+}
+
+.stat-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 6px;
+  display: block;
+}
+
+/* ALERT BOX */
+.alert-box {
+  background: linear-gradient(135deg, rgba(176,48,48,0.12), rgba(176,48,48,0.06));
+  border: 1px solid rgba(176,48,48,0.4);
+  border-left: 4px solid var(--red);
+  padding: 18px 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease 0.2s both;
+}
+
+.alert-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+.alert-box p { font-size: 13.5px; line-height: 1.6; }
+
+.alert-box strong { color: var(--white); }
+
+/* ── RESOURCES SECTION ── */
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2px;
+  animation: fadeIn 0.5s ease;
+}
+
+.res-card {
+  background: var(--surface);
+  padding: 28px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.res-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--gold-dim), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.res-card:hover {
+  background: var(--surface2);
+}
+
+.res-card:hover::before { opacity: 1; }
+
+.res-card:nth-child(1) { border-left-color: var(--gold); }
+.res-card:nth-child(2) { border-left-color: var(--blue-bright); }
+.res-card:nth-child(3) { border-left-color: #4caf8a; }
+.res-card:nth-child(4) { border-left-color: #e09c3a; }
+.res-card:nth-child(5) { border-left-color: #9b72cf; }
+.res-card:nth-child(6) { border-left-color: var(--red); }
+.res-card:nth-child(7) { border-left-color: #e67e22; }
+.res-card:nth-child(8) { border-left-color: var(--blue); }
+.res-card:nth-child(9) { border-left-color: #16a085; }
+.res-card:nth-child(10) { border-left-color: #c0392b; }
+.res-card:nth-child(11) { border-left-color: #2980b9; }
+
+.res-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.res-icon { font-size: 26px; }
+
+.res-card h3 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.res-card p {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  flex: 1;
+}
+
+.res-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--gold);
+  text-transform: uppercase;
+  margin-top: 4px;
+  transition: gap 0.2s;
+}
+
+.res-card:hover .res-cta { gap: 12px; }
+
+/* ── COUNSELING SECTION ── */
+.counseling-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 28px;
+  animation: fadeIn 0.5s ease;
+}
+
+.counseling-intro h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+
+.counseling-intro p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+  max-width: 680px;
+}
+
+.module-badge {
+  background: linear-gradient(135deg, var(--gold), #b8882a);
+  color: #06090f;
+  padding: 12px 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.module-badge .mb-top {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.module-badge .mb-val {
+  font-family: 'Oswald', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  display: block;
+}
+
+.module-badge .mb-sub {
+  font-size: 10px;
+  display: block;
+  margin-top: 2px;
+  opacity: 0.7;
+}
+
+/* IFRAME WRAPPER */
+.iframe-shell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  animation: fadeIn 0.5s ease 0.15s both;
+}
+
+.iframe-toolbar {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.toolbar-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.dot-r { background: #b22222; }
+.dot-y { background: #d4a843; }
+.dot-g { background: #1f7a4e; }
+
+.toolbar-url {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  padding: 5px 14px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+  border-radius: 2px;
+}
+
+.toolbar-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-transform: uppercase;
+  background: rgba(31,122,78,0.15);
+  border: 1px solid rgba(31,122,78,0.3);
+  padding: 3px 10px;
+}
+
+.iframe-shell iframe {
+  width: 100%;
+  height: 700px;
+  border: none;
+  display: block;
+}
+
+.iframe-note {
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.iframe-note a {
+  color: var(--gold);
+  text-decoration: none;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.iframe-note a:hover { text-decoration: underline; }
+
+/* Module topics */
+.module-topics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin-top: 2px;
+  animation: fadeIn 0.5s ease 0.3s both;
+}
+
+.topic-card {
+  background: var(--surface);
+  padding: 20px 22px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.topic-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+
+.topic-card h4 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.topic-card p {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── SECTION HEADER ── */
+.sec-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.sec-heading h2 {
+  font-family: 'Oswald', sans-serif;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--white);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.sec-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(212,168,67,0.4), transparent);
+}
+
+.sec-code {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--gold);
+  background: var(--gold-dim);
+  border: 1px solid rgba(212,168,67,0.25);
+  padding: 4px 10px;
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-left p {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-links a:hover { color: var(--gold); }
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .header-inner { padding: 20px 24px; }
+  main { padding: 32px 20px; }
+  .overview-hero { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .module-topics { grid-template-columns: 1fr 1fr; }
+  .counseling-header { grid-template-columns: 1fr; }
+  footer { padding: 20px 24px; }
+  .nav-inner { padding: 0 20px; }
+  .nav-tab { padding: 14px 14px; font-size: 11px; }
+}
+
+@media (max-width: 560px) {
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .module-topics { grid-template-columns: 1fr; }
+  .header-badge { display: none; }
+  .emblem { width: 60px; height: 60px; }
+}
 </style>
 </head>
 <body>
 
-<div id="scanline"></div>
-<div id="toast"></div>
+<div class="flag-stripe"></div>
 
-<div id="app">
-
-  <!-- HEADER -->
-  <div id="header">
-    <div class="header-bar"></div>
-    <div class="header-titles">
-      <div class="header-sub">DEFENSE TRANSPORTATION SURVEILLANCE SYSTEM</div>
-      <div class="header-main">DTSS // TSP PERFORMANCE MONITOR</div>
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <!-- Emblem SVG -->
+    <div class="emblem">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="g1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#1a3a5c"/>
+            <stop offset="100%" stop-color="#06090f"/>
+          </radialGradient>
+        </defs>
+        <!-- Pentagon shape -->
+        <polygon points="50,5 95,36 77,88 23,88 5,36" fill="url(#g1)" stroke="#d4a843" stroke-width="1.5"/>
+        <!-- Inner pentagon -->
+        <polygon points="50,16 84,40 71,78 29,78 16,40" fill="none" stroke="rgba(212,168,67,0.3)" stroke-width="0.8"/>
+        <!-- Star -->
+        <polygon points="50,22 56,38 73,38 59,48 64,64 50,54 36,64 41,48 27,38 44,38" fill="#d4a843"/>
+        <!-- Text arc simulation using two lines -->
+        <text x="50" y="94" text-anchor="middle" font-size="6.5" fill="#d4a843" font-family="Share Tech Mono,monospace" letter-spacing="1">DP3 · DoD</text>
+      </svg>
     </div>
-    <button class="btn-o" id="adminBtn" onclick="goAdminLogin()">ADMIN DASHBOARD →</button>
-  </div>
-
-  <!-- ═══ HOME ═══ -->
-  <div id="page-home" class="page active fade">
-    <div class="text-center" style="padding: 28px 0 36px;">
-      <div style="font-size:52px;margin-bottom:14px;">🎖️</div>
-      <div style="font-size:20px;font-weight:bold;letter-spacing:2px;color:#fff;margin-bottom:8px;">TSP PERFORMANCE SURVEILLANCE</div>
-      <div style="color:var(--text-dim);font-size:12px;max-width:460px;margin:0 auto;line-height:1.8;">
-        Document and report Transportation Service Provider infractions per Defense Transportation Regulation (DTR) Part IV and Tender of Service requirements.
-      </div>
+    <div class="header-content">
+      <div class="header-kicker">U.S. Transportation Command · USTRANSCOM</div>
+      <div class="header-title">Defense <em>Personal Property</em> Program</div>
+      <div class="header-sub">DP3 · Official Resource Portal for Military &amp; Civilian Service Members</div>
     </div>
-    <div class="phase-grid">
-      <button class="phase-btn" onclick="startPhase('Pack &amp; Pickup')">
-        <div class="phase-icon">📦🚛</div>
-        <div class="phase-label">BEGIN PACK &amp; PICKUP</div>
-        <div class="phase-desc">Packing crew, materials, inventory, loading &amp; conduct</div>
-      </button>
-      <button class="phase-btn" onclick="startPhase('Delivery')">
-        <div class="phase-icon">🏠</div>
-        <div class="phase-label">BEGIN DELIVERY</div>
-        <div class="phase-desc">Delivery timeliness, item condition &amp; conduct</div>
-      </button>
-    </div>
-    <div class="card">
-      <div class="card-title">⚠ REGULATORY BASIS</div>
-      <div style="font-size:12px;color:var(--text-dim);line-height:1.8;">
-        Infractions are catalogued per the <strong style="color:rgba(255,255,255,.65);">DTR Part IV</strong> and
-        <strong style="color:rgba(255,255,255,.65);">Tender of Service (TOS)</strong> requirements. Reports are submitted to your designated TMO/PPSO and stored centrally for office review. All submissions are visible to authorized office personnel via the Admin Dashboard.
-      </div>
+    <div class="header-badge">
+      <span class="badge-top">Program</span>
+      <span class="badge-bottom">DP3</span>
+      <span class="badge-top" style="margin-top:3px">USTRANSCOM</span>
     </div>
   </div>
+</header>
 
-  <!-- ═══ SURVEY ═══ -->
-  <div id="page-survey" class="page fade">
-    <div class="flex-center gap-12 mb-18">
-      <button class="btn-o btn-sm" onclick="goHome()">← BACK</button>
-      <div style="flex:1">
-        <div style="font-size:10px;color:var(--green);letter-spacing:2px;" id="surveyPhaseLabel">PHASE //</div>
-        <div style="font-size:15px;font-weight:bold;color:#fff;">INFRACTION CHECKLIST</div>
-      </div>
-      <div class="flagged-badge hidden" id="flaggedBadge">0 FLAGGED</div>
-    </div>
-
-    <!-- Member Info -->
-    <div class="card">
-      <div class="card-title">SERVICE MEMBER INFORMATION</div>
-      <div class="grid-2">
-        <div class="field">
-          <label class="field-label">RANK *</label>
-          <input type="text" id="f-rank" placeholder="rank">
-        </div>
-        <div class="field">
-          <label class="field-label">LAST NAME, FIRST *</label>
-          <input type="text" id="f-name" placeholder="last name, first">
-        </div>
-        <div class="field">
-          <label class="field-label">UNIT</label>
-          <input type="text" id="f-unit" placeholder="unit">
-        </div>
-        <div class="field">
-          <label class="field-label">TSP / MOVING COMPANY *</label>
-          <input type="text" id="f-provider" placeholder="moving company name">
-        </div>
-        <div class="field col-span-2">
-          <label class="field-label">INSTALLATION *</label>
-          <select id="f-installation" onchange="onInstallationChange()">
-            <option value="">— Select Installation —</option>
-          </select>
-        </div>
-        <div class="field" id="autofill-office-wrap" style="display:none">
-          <label class="field-label">TMO/PPSO OFFICE</label>
-          <div class="autofill-box" id="autofill-office">—</div>
-        </div>
-        <div class="field" id="autofill-phone-wrap" style="display:none">
-          <label class="field-label">TMO/PPSO PHONE <span style="color:var(--text-dim);font-weight:normal;">(auto-filled)</span></label>
-          <div class="autofill-box" id="autofill-phone">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Infractions -->
-    <div class="mb-18">
-      <div style="font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:12px;" id="infractionListTitle">SELECT ALL OBSERVED INFRACTIONS</div>
-      <div id="infraction-list"></div>
-    </div>
-
-    <!-- Severity summary -->
-    <div id="sev-summary" class="hidden" style="display:flex;gap:8px;padding:12px;background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.25);margin-bottom:18px;flex-wrap:wrap;"></div>
-
-    <div class="flex-center">
-      <div style="flex:1;font-size:10px;color:var(--text-dim);">* Required fields</div>
-      <button class="btn btn-g" id="proceedBtn" onclick="goReport()" disabled>PROCEED TO REPORT →</button>
-    </div>
-    <div id="proceed-hint" class="text-right mt-6" style="font-size:10px;color:rgba(255,255,255,.28);">* Flag at least 1 infraction and fill rank, name, installation &amp; TSP</div>
+<!-- NAV TABS -->
+<nav class="nav-bar" role="navigation">
+  <div class="nav-inner">
+    <button class="nav-tab active" onclick="showSection('overview', this)">📋 Overview</button>
+    <button class="nav-tab" onclick="showSection('counseling', this)">🎓 Virtual Counseling</button>
+    <button class="nav-tab" onclick="showSection('resources', this)">📂 Resources &amp; Fact Sheets</button>
+    <button class="nav-tab" onclick="showSection('tools', this)">🛠 Tools &amp; Offices</button>
   </div>
+</nav>
 
-  <!-- ═══ REPORT STEP ═══ -->
-  <div id="page-report" class="page fade">
-    <div class="flex-center gap-12 mb-18">
-      <button class="btn-o btn-sm" onclick="goSurvey()">← BACK</button>
-      <div>
-        <div style="font-size:10px;color:var(--green);letter-spacing:2px;">STEP 2 // REVIEW &amp; SUBMIT</div>
-        <div style="font-size:15px;font-weight:bold;color:#fff;">INFRACTION REPORT</div>
+<main>
+
+  <!-- ════════════════════ OVERVIEW ════════════════════ -->
+  <section class="section active" id="overview">
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <span class="stat-num">300K+</span>
+        <span class="stat-label">Moves per Year</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">170+</span>
+        <span class="stat-label">Countries Served</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">PPM</span>
+        <span class="stat-label">Self-Move Option</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num">DPS</span>
+        <span class="stat-label">Online Booking System</span>
       </div>
     </div>
 
-    <!-- Summary card -->
-    <div class="card">
-      <div class="card-title" id="report-id-label">REPORT SUMMARY</div>
-      <div class="sum-grid" id="report-summary-grid"></div>
-      <div class="card-title" id="report-infractions-title">FLAGGED INFRACTIONS</div>
-      <div id="report-infractions-list"></div>
+    <div class="alert-box">
+      <div class="alert-icon">⚠️</div>
+      <p><strong>Important:</strong> All personal property moves must be authorized through your gaining/losing unit. Schedule your shipment through the Defense Personal Property System (DPS) or contact your Transportation Management Office (TMO) / Personal Property Office (PPO) as early as possible — ideally 8–10 weeks before your move date.</p>
+    </div>
 
-      <!-- Photos summary -->
-      <div id="report-photos-section" class="hidden">
-        <div class="card-title mt-10">ATTACHED PHOTOS</div>
-        <div id="report-photos-grid" class="report-photos"></div>
+    <div class="sec-heading">
+      <span class="sec-code">SEC-01</span>
+      <h2>Program Overview</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div class="overview-hero">
+      <div class="hero-panel" data-num="01">
+        <div class="hero-panel-label">Mission</div>
+        <h2>What Is the DP3 Program?</h2>
+        <p>The Defense Personal Property Program (DP3) is the DoD's comprehensive system for managing the shipment and storage of household goods (HHG) for active duty military, Reserve/National Guard members, and eligible civilian employees during Permanent Change of Station (PCS), separation, and retirement.</p>
+        <p style="margin-top:12px">Managed by <strong style="color:var(--white)">U.S. Transportation Command (USTRANSCOM)</strong>, DP3 connects service members with approved Transportation Service Providers (TSPs) through the Defense Personal Property System (DPS) — an online portal for scheduling, tracking, and managing all shipment activity.</p>
+      </div>
+      <div class="hero-panel" data-num="02">
+        <div class="hero-panel-label">Entitlements</div>
+        <h2>What Are You Entitled To?</h2>
+        <ul class="info-list">
+          <li><strong style="color:var(--white)">Household Goods (HHG)</strong> — Government-arranged full-service move based on rank/grade and dependency status</li>
+          <li><strong style="color:var(--white)">Personally Procured Move (PPM/DITY)</strong> — Self-move with incentive payment up to 100% of Government Constructive Cost</li>
+          <li><strong style="color:var(--white)">Unaccompanied Baggage (UB)</strong> — Separate air-expedited shipment for essential items needed immediately</li>
+          <li><strong style="color:var(--white)">Non-Temporary Storage (NTS)</strong> — Long-term storage during overseas tours and certain assignments</li>
+          <li><strong style="color:var(--white)">Storage-in-Transit (SIT)</strong> — Up to 90 days temporary storage at origin or destination</li>
+          <li><strong style="color:var(--white)">Pro-Gear</strong> — Additional weight allowance for professional books, papers, and equipment</li>
+        </ul>
+      </div>
+      <div class="hero-panel" data-num="03">
+        <div class="hero-panel-label">Move Types</div>
+        <h2>Types of Shipments</h2>
+        <ul class="info-list">
+          <li><strong style="color:var(--white)">Full-Service Move</strong> — TSP packs, loads, transports, and delivers your goods</li>
+          <li><strong style="color:var(--white)">Partial PPM</strong> — Move some items yourself; TSP handles the rest</li>
+          <li><strong style="color:var(--white)">Full PPM</strong> — You arrange and complete the entire move yourself</li>
+          <li><strong style="color:var(--white)">CONUS moves</strong> — Continental U.S. shipments via ground or containerized transport</li>
+          <li><strong style="color:var(--white)">OCONUS moves</strong> — Overseas moves via authorized international TSPs</li>
+          <li><strong style="color:var(--white)">Express Shipments</strong> — Rapid delivery option for select items when needed quickly</li>
+        </ul>
+      </div>
+      <div class="hero-panel" data-num="04">
+        <div class="hero-panel-label">Your Responsibilities</div>
+        <h2>Key Service Member Actions</h2>
+        <ul class="info-list">
+          <li>Contact your TMO/PPO as soon as orders are received</li>
+          <li>Create a DPS account and submit move requests online</li>
+          <li>Inventory high-value items and document with photos/video before packing</li>
+          <li>Be present or have a designated representative for pickup and delivery</li>
+          <li>Annotate exceptions on the inventory at delivery — never sign a blank form</li>
+          <li>File loss/damage claims within 9 months of delivery</li>
+          <li>File inconvenience claims if TSP misses pickup or delivery window</li>
+        </ul>
       </div>
     </div>
 
-    <!-- Select office -->
-    <div class="card">
-      <div class="card-title">SELECT REPORTING OFFICE</div>
-      <div id="office-list"></div>
-      <div id="custom-office-wrap" class="hidden" style="padding:14px;border:1px solid rgba(0,255,136,.18);margin-top:7px;">
-        <div style="font-size:10px;color:var(--green);letter-spacing:1px;margin-bottom:10px;">ENTER OFFICE DETAILS</div>
-        <div class="grid-2">
-          <div class="field">
-            <label class="field-label">OFFICE NAME *</label>
-            <input type="text" id="f-custom-office" placeholder="Office name">
-          </div>
-          <div class="field">
-            <label class="field-label">CONTACT EMAIL / PHONE *</label>
-            <input type="text" id="f-custom-contact" placeholder="Contact info">
-          </div>
+  </section>
+
+  <!-- ════════════════════ VIRTUAL COUNSELING ════════════════════ -->
+  <section class="section" id="counseling">
+
+    <div class="counseling-header">
+      <div class="counseling-intro">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:10px;">MODULE · VCOUNSEL-01</div>
+        <h2>Virtual Personal Property Counseling</h2>
+        <p>Complete your official virtual pre-move counseling through the USTRANSCOM-authorized training platform below. This module covers your entitlements, DPS system walk-through, packaging requirements, claims procedures, and special items guidance. Completion may be required before your TMO/PPO processes your shipment request.</p>
+      </div>
+      <div class="module-badge">
+        <span class="mb-top">Official</span>
+        <span class="mb-val">VC</span>
+        <span class="mb-sub">Virtual Counseling</span>
+      </div>
+    </div>
+
+    <div class="iframe-shell">
+      <div class="iframe-toolbar">
+        <div class="toolbar-dots">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+        </div>
+        <div class="toolbar-url">https://usjs-pp.teachable.com/</div>
+        <div class="toolbar-tag">🔒 Secure · .mil Authorized</div>
+      </div>
+      <iframe
+        src="https://usjs-pp.teachable.com/"
+        title="USTRANSCOM Personal Property Virtual Counseling Module"
+        allow="fullscreen"
+        loading="lazy"
+      ></iframe>
+      <div class="iframe-note">
+        <span>⚠️</span>
+        <span>If the module does not load, open it directly: <a href="https://usjs-pp.teachable.com/" target="_blank" rel="noopener">usjs-pp.teachable.com ↗</a> &nbsp;·&nbsp; Use your CAC or assigned credentials to log in if prompted.</span>
+      </div>
+    </div>
+
+    <div class="module-topics">
+      <div class="topic-card">
+        <div class="topic-icon">📋</div>
+        <div>
+          <h4>Entitlements Briefing</h4>
+          <p>Weight allowances, pro-gear, UB, NTS, SIT, and PPM incentive payment calculations by grade.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">🖥️</div>
+        <div>
+          <h4>DPS System Walk-Through</h4>
+          <p>How to create a move request, select a TSP, and manage your shipment online in DPS.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">📦</div>
+        <div>
+          <h4>Packing & Containerization</h4>
+          <p>TSP packing standards, prohibited items, high-value inventory documentation, and containerization rules.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">⚖️</div>
+        <div>
+          <h4>Weight Allowances</h4>
+          <p>How to estimate your shipment weight, avoiding excess costs, and the weight ticket process for PPM moves.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">🔒</div>
+        <div>
+          <h4>Special Items & Restrictions</h4>
+          <p>Vehicles, firearms, plants, hazardous materials, and items requiring special handling or approval.</p>
+        </div>
+      </div>
+      <div class="topic-card">
+        <div class="topic-icon">📝</div>
+        <div>
+          <h4>Claims & Disputes</h4>
+          <p>Filing loss/damage claims, inconvenience claims, timelines, required documentation, and escalation paths.</p>
         </div>
       </div>
     </div>
 
-    <div class="flex-center">
-      <div style="font-size:10px;color:rgba(255,255,255,.28);" id="report-id-footer"></div>
-      <div class="ml-auto">
-        <button class="btn btn-r" id="submitBtn" onclick="submitReport()" disabled>⚑ SUBMIT INFRACTION REPORT</button>
+  </section>
+
+  <!-- ════════════════════ RESOURCES ════════════════════ -->
+  <section class="section" id="resources">
+
+    <div class="sec-heading">
+      <span class="sec-code">SEC-03</span>
+      <h2>Official Resources &amp; Fact Sheets</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div class="resources-grid">
+
+      <a href="https://www.militaryonesource.mil/moving-pcs/moving-personal-property/resources/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">MilitaryOneSource · Hub</div>
+        <div class="res-icon">📦</div>
+        <h3>Personal Property Moving Resources</h3>
+        <p>The official MilitaryOneSource hub for all PCS moving and personal property resources, guides, tools, and program information.</p>
+        <div class="res-cta">Access Hub →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/resources/gov/defense-personal-property-system/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">USTRANSCOM · System</div>
+        <div class="res-icon">🖥️</div>
+        <h3>Defense Personal Property System (DPS)</h3>
+        <p>Log in to DPS to create move requests, select your TSP, schedule pickup and delivery dates, and track your shipment status.</p>
+        <div class="res-cta">Go to DPS →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personal-property-quick-reference-guide-d1255/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Reference Guide</div>
+        <div class="res-icon">📘</div>
+        <h3>Personal Property Quick Reference Guide</h3>
+        <p>Condensed, actionable guide covering entitlements, move types, scheduling timelines, TSP responsibilities, and program contacts.</p>
+        <div class="res-cta">View Guide →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personal-property-claims-fact-sheet-d1244/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Claims</div>
+        <div class="res-icon">📄</div>
+        <h3>Personal Property Claims</h3>
+        <p>How to file claims for lost, damaged, or destroyed property — including valuation methods, timelines (9-month deadline), and required documentation.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/inconvenience-claims-fact-sheet-d1237/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Claims</div>
+        <div class="res-icon">⚠️</div>
+        <h3>Inconvenience Claims</h3>
+        <p>Reimbursement when your TSP fails to pick up or deliver on the promised date, including lodging, meals, and out-of-pocket expense coverage.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://download.militaryonesource.mil/12038/MOS/Factsheets/FactSheet-MoldAndYourPersonalProperty.pdf" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · PDF</div>
+        <div class="res-icon">🍃</div>
+        <h3>Mold &amp; Your Personal Property</h3>
+        <p>Identifying, preventing, and addressing mold damage during storage or shipment, including what to do at delivery and how to file related claims.</p>
+        <div class="res-cta">Download PDF →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/personally-procured-moves-and-rogue-operators-fact-sheet-d1375/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · PPM</div>
+        <div class="res-icon">🚛</div>
+        <h3>PPM &amp; Rogue Operators</h3>
+        <p>Everything about Personally Procured Moves (PPM/DITY), incentive payments, and how to identify and avoid unlicensed/rogue movers.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/7-day-scheduling-window-fact-sheet-d1258/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Scheduling</div>
+        <div class="res-icon">📅</div>
+        <h3>7-Day Scheduling Window</h3>
+        <p>How the 7-day pickup and delivery window works, your rights within that window, and how to request a specific required delivery date (RDD).</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+      <a href="https://www.militaryonesource.mil/documents/containerization-of-your-personal-property-fact-sheet-d1260/" target="_blank" rel="noopener" class="res-card">
+        <div class="res-tag">Fact Sheet · Shipment</div>
+        <div class="res-icon">🗃️</div>
+        <h3>Containerization of Personal Property</h3>
+        <p>How containerized shipments work, TSP packing standards, what to expect on pack day, and how containerization reduces transit damage.</p>
+        <div class="res-cta">View Fact Sheet →</div>
+      </a>
+
+    </div>
+
+  </section>
+
+  <!-- ════════════════════ TOOLS & OFFICES ════════════════════ -->
+  <section class="section" id="tools">
+
+    <div class="sec-heading">
+      <span class="sec-code">SEC-04</span>
+      <h2>Tools &amp; Office Locator</h2>
+      <div class="sec-line"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:2px">
+
+      <a href="https://www.ustranscom.mil/dp3/weightestimator.cfm" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+        <div class="hero-panel" style="height:100%;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div class="hero-panel-label">USTRANSCOM Tool</div>
+          <div style="font-size:36px;margin-bottom:12px">⚖️</div>
+          <h2>Household Goods Weight Estimator</h2>
+          <p>Use USTRANSCOM's official online tool to estimate the total weight of your household goods before your move. Helps you avoid exceeding your weight allowance and incurring excess costs.</p>
+          <div style="margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">Open Estimator →</div>
+        </div>
+      </a>
+
+      <a href="https://installations.militaryonesource.mil/search?program-service=39/view-by=ALL" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+        <div class="hero-panel" style="height:100%;cursor:pointer;transition:background 0.2s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+          <div class="hero-panel-label">Installation Locator</div>
+          <div style="font-size:36px;margin-bottom:12px">📍</div>
+          <h2>Find Your TMO / PPO</h2>
+          <p>Locate the Transportation Management Office (TMO) or Personal Property Office (PPO) at any installation worldwide. Get contact info, hours, and services offered to start your move counseling.</p>
+          <div style="margin-top:20px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--gold);text-transform:uppercase">Find Office →</div>
+        </div>
+      </a>
+
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px">
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · Claims</div>
+        <h2 style="font-size:16px">Document Everything</h2>
+        <p style="font-size:13px">Before pack-out, photograph and video every item of value. Create a written inventory. This evidence is essential for claims and significantly speeds up TSP reimbursement.</p>
+      </div>
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · Delivery</div>
+        <h2 style="font-size:16px">Never Sign Blank</h2>
+        <p style="font-size:13px">At delivery, always annotate any damage or missing items on the DD Form 1840 before signing. Signing a clean form waives your ability to dispute those items later.</p>
+      </div>
+      <div class="hero-panel">
+        <div class="hero-panel-label">Tip · PPM</div>
+        <h2 style="font-size:16px">Get Weight Tickets</h2>
+        <p style="font-size:13px">For PPM moves, obtain certified weight tickets before and after loading at a certified scale. These are required to claim your incentive payment from the government.</p>
       </div>
     </div>
-    <div class="text-right mt-6" style="font-size:10px;color:rgba(255,255,255,.28);">* Select a reporting office to submit</div>
-  </div>
 
-  <!-- ═══ CONFIRM ═══ -->
-  <div id="page-confirm" class="page fade" style="text-align:center;padding:44px 0;">
-    <div class="confirm-circle">✓</div>
-    <div style="font-size:10px;color:var(--green);letter-spacing:3px;margin-bottom:6px;">REPORT SUBMITTED</div>
-    <div style="font-size:20px;font-weight:bold;color:#fff;margin-bottom:4px;">INFRACTION REPORT FILED</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:28px;">Reference ID: <strong style="color:var(--green);" id="confirm-id"></strong></div>
-    <div class="card" style="text-align:left;max-width:520px;margin:0 auto 28px;">
-      <div class="card-title">SUBMISSION DETAILS</div>
-      <div id="confirm-details"></div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:24px;flex-wrap:wrap;">
-      <button class="btn-o" onclick="printReport()">🖨 PRINT / SAVE PDF</button>
-      <button class="btn-o" onclick="emailReport()">✉ EMAIL TO OFFICE</button>
-    </div>
-    <button class="btn btn-g" onclick="resetApp()">START NEW REPORT</button>
-    <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:18px;line-height:1.7;">
-      Retain this ID for your records. Submit DD Form 1840/1840R for loss or damage claims.
-    </div>
-  </div>
+  </section>
 
-  <!-- ═══ ADMIN LOGIN ═══ -->
-  <div id="page-adminlogin" class="page fade" style="max-width:380px;margin:60px auto;">
-    <div class="card">
-      <div style="font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:4px;">RESTRICTED ACCESS</div>
-      <div style="font-size:17px;font-weight:bold;color:#fff;margin-bottom:18px;">ADMIN DASHBOARD</div>
-      <div style="font-size:11px;color:var(--text-dim);margin-bottom:18px;line-height:1.7;">
-        Authorized TMO/PPSO personnel only. Enter your office PIN to access all submitted reports.
-      </div>
-      <div class="field">
-        <label class="field-label">ACCESS PIN</label>
-        <input type="password" id="f-pin" placeholder="Enter PIN" onkeydown="if(event.key==='Enter')doAdminLogin()">
-        <div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:5px;">Demo PIN: TMO2024</div>
-      </div>
-      <div id="pin-error" style="font-size:12px;color:#fca5a5;margin-bottom:12px;display:none;"></div>
-      <button class="btn btn-g" style="width:100%" onclick="doAdminLogin()">ACCESS DASHBOARD →</button>
-    </div>
-  </div>
+</main>
 
-  <!-- ═══ ADMIN DASHBOARD ═══ -->
-  <div id="page-admin" class="page fade">
-    <div style="margin-bottom:20px;">
-      <div style="font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:4px;">ADMIN // TMO/PPSO VIEW</div>
-      <div style="font-size:17px;font-weight:bold;color:#fff;">ALL SUBMITTED REPORTS</div>
-    </div>
-    <div class="stat-grid" id="admin-stats"></div>
-    <div class="filter-bar" id="filter-bar"></div>
-    <div id="admin-report-list">
-      <div style="text-align:center;padding:48px;color:rgba(255,255,255,.25);font-size:13px;">No reports submitted yet.</div>
-    </div>
+<footer>
+  <div class="footer-left">
+    <p>U.S. DEPARTMENT OF DEFENSE · DEFENSE PERSONAL PROPERTY PROGRAM · DP3</p>
+    <p style="margin-top:4px;opacity:0.5">All links direct to official U.S. Government .mil and authorized training platforms.</p>
   </div>
-
-</div><!-- /app -->
+  <div class="footer-links">
+    <a href="https://www.militaryonesource.mil" target="_blank" rel="noopener">MilitaryOneSource</a>
+    <a href="https://www.ustranscom.mil" target="_blank" rel="noopener">USTRANSCOM</a>
+    <a href="https://www.move.mil" target="_blank" rel="noopener">Move.mil</a>
+    <a href="https://usjs-pp.teachable.com/" target="_blank" rel="noopener">Virtual Counseling</a>
+  </div>
+</footer>
+<div class="flag-stripe"></div>
 
 <script>
-// ════════════════════════════════════════════════════════════
-// DATA
-// ════════════════════════════════════════════════════════════
-
-const INFRACTIONS = {
-  "Pack & Pickup": [
-    // ── PACKING ──────────────────────────────────────────────
-    { id:"P1",  code:"PKG-01", label:"Improper packing materials used", severity:"Major",    section:"PACKING" },
-    { id:"P2",  code:"PKG-02", label:"Items not inventoried prior to packing", severity:"Major",    section:"PACKING" },
-    { id:"P3",  code:"PKG-03", label:"Fragile items not properly wrapped/cushioned", severity:"Major",    section:"PACKING" },
-    { id:"P4",  code:"PKG-04", label:"High-value items not segregated/documented", severity:"Critical", section:"PACKING" },
-    { id:"P5",  code:"PKG-05", label:"Boxes overpacked/exceeding weight limits", severity:"Minor",    section:"PACKING" },
-    { id:"P6",  code:"PKG-06", label:"Crew arrived late (>30 min from scheduled time)", severity:"Minor",    section:"PACKING" },
-    { id:"P7",  code:"PKG-07", label:"Insufficient crew size for job scope", severity:"Major",    section:"PACKING" },
-    { id:"P8",  code:"PKG-08", label:"Failure to use protective floor/wall coverings", severity:"Minor",    section:"PACKING" },
-    { id:"P9",  code:"PKG-09", label:"Service member not informed of packing process", severity:"Minor",    section:"PACKING" },
-    { id:"P10", code:"PKG-10", label:"Crew exhibited unprofessional conduct", severity:"Major",    section:"PACKING" },
-    // ── PICKUP ───────────────────────────────────────────────
-    { id:"U1",  code:"PKP-01", label:"Shipment not picked up on scheduled date", severity:"Critical", section:"PICKUP" },
-    { id:"U2",  code:"PKP-02", label:"Inventory not completed/signed before loading", severity:"Critical", section:"PICKUP" },
-    { id:"U3",  code:"PKP-03", label:"Items not properly loaded/secured in vehicle", severity:"Major",    section:"PICKUP" },
-    { id:"U4",  code:"PKP-04", label:"Unauthorized items loaded in shipment", severity:"Major",    section:"PICKUP" },
-    { id:"U5",  code:"PKP-05", label:"Vehicle not adequate/clean for household goods", severity:"Major",    section:"PICKUP" },
-    { id:"U6",  code:"PKP-06", label:"Weight ticket not provided at pickup", severity:"Minor",    section:"PICKUP" },
-    { id:"U7",  code:"PKP-07", label:"Driver could not produce required documentation", severity:"Critical", section:"PICKUP" },
-    { id:"U8",  code:"PKP-08", label:"Damage occurred during loading", severity:"Critical", section:"PICKUP" },
-    { id:"U9",  code:"PKP-09", label:"Failure to coordinate with service member on load order", severity:"Minor",    section:"PICKUP" },
-    { id:"U10", code:"PKP-10", label:"Contact/notification procedures not followed", severity:"Minor",    section:"PICKUP" },
-  ],
-  Delivery: [
-    { id:"D1",  code:"DLV-01", label:"Delivery outside of agreed delivery window", severity:"Major" },
-    { id:"D2",  code:"DLV-02", label:"Items delivered to wrong address", severity:"Critical" },
-    { id:"D3",  code:"DLV-03", label:"Missing items from shipment at delivery", severity:"Critical" },
-    { id:"D4",  code:"DLV-04", label:"Damaged items discovered upon delivery", severity:"Critical" },
-    { id:"D5",  code:"DLV-05", label:"Inventory not reconciled at delivery", severity:"Major" },
-    { id:"D6",  code:"DLV-06", label:"Crew refused to place items in designated rooms", severity:"Major" },
-    { id:"D7",  code:"DLV-07", label:"Failure to reassemble furniture/items", severity:"Major" },
-    { id:"D8",  code:"DLV-08", label:"No notification given prior to delivery attempt", severity:"Minor" },
-    { id:"D9",  code:"DLV-09", label:"Driver demanded additional payment", severity:"Critical" },
-    { id:"D10", code:"DLV-10", label:"Paperwork not completed / signature not obtained", severity:"Minor" },
-  ]
-};
-
-const OFFICES = [
-  { id:"O1", name:"Transportation Management Office (TMO)", branch:"Army", contact:"tmo.army@mail.mil" },
-  { id:"O2", name:"Personal Property Shipping Office (PPSO)", branch:"Navy", contact:"ppso.navy@mail.mil" },
-  { id:"O3", name:"Traffic Management Office", branch:"Air Force", contact:"tmo.af@mail.mil" },
-  { id:"O4", name:"Marine Corps Personal Property", branch:"Marines", contact:"pp.usmc@mail.mil" },
-  { id:"O5", name:"Coast Guard Work-Life", branch:"Coast Guard", contact:"worklife.uscg@mail.mil" },
-  { id:"O6", name:"Space Force Logistics", branch:"Space Force", contact:"logistics.ussf@mail.mil" },
-  { id:"O7", name:"Other / Manually Enter", branch:"Other", contact:"" },
-];
-
-const SEV_STYLE = {
-  Critical: { tagCls:"sev-critical", dot:"#dc2626", borderLeft:"3px solid #dc2626", bg:"rgba(220,38,38,0.1)" },
-  Major:    { tagCls:"sev-major",    dot:"#ea580c", borderLeft:"3px solid #ea580c", bg:"rgba(234,88,12,0.1)" },
-  Minor:    { tagCls:"sev-minor",    dot:"#ca8a04", borderLeft:"3px solid #ca8a04", bg:"rgba(202,138,4,0.1)" },
-};
-
-const ADMIN_PIN = "TMO2024";
-
-const INSTALLATION_DATA = [
-  { name:"Aberdeen Proving Ground",            branch:"Army",        office:"Transportation Office Inbound/Outbound",            phone:"410-306-2073" },
-  { name:"Altus AFB",                          branch:"Air Force",   office:"Traffic Management Flight",                        phone:"580-481-6829" },
-  { name:"Anniston Army Depot",                branch:"Army",        office:"Transportation Office",                            phone:"256-235-6515" },
-  { name:"Arnold AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"931-454-7805" },
-  { name:"Aviano Air Base",                    branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 632-7021" },
-  { name:"Barksdale Air Force Base",           branch:"Air Force",   office:"Traffic Management Office",                       phone:"318-456-3229" },
-  { name:"Beale AFB",                          branch:"Air Force",   office:"JPPSO",                                           phone:"530-634-2932" },
-  { name:"Buckley SFB",                        branch:"Space Force", office:"Buckley Traffic Management Office (TMO)",          phone:"720-847-6685" },
-  { name:"Camp Lejeune",                       branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"910-450-8417" },
-  { name:"Camp Parks",                         branch:"Army",        office:"Transportation Office",                           phone:"510-437-3113" },
-  { name:"Camp Pendleton",                     branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"760-725-8666" },
-  { name:"Camp S D Butler (Okinawa)",          branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"DSN 645-7230" },
-  { name:"Cannon AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"575-784-2754" },
-  { name:"Carlisle Barracks",                  branch:"Army",        office:"Transportation Office",                           phone:"717-245-4357" },
-  { name:"Columbus AFB",                       branch:"Air Force",   office:"Traffic Management Flight",                       phone:"662-434-7212" },
-  { name:"Creech AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"702-432-4239" },
-  { name:"Davis-Monthan AFB",                  branch:"Air Force",   office:"Traffic Management Office",                       phone:"520-228-3007" },
-  { name:"Detroit Arsenal",                    branch:"Army",        office:"Transportation Office",                           phone:"586-282-5592" },
-  { name:"Dover AFB",                          branch:"Air Force",   office:"Traffic Management Flight",                       phone:"302-677-3498" },
-  { name:"Dugway Proving Ground",              branch:"Army",        office:"Transportation Office",                           phone:"435-831-2232" },
-  { name:"Dyess AFB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"325-696-3497" },
-  { name:"Edwards AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"661-277-3839" },
-  { name:"Eglin AFB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"850-882-2871" },
-  { name:"Eielson AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"907-377-1841" },
-  { name:"Ellsworth Air Force Base",           branch:"Air Force",   office:"Traffic Management Office",                       phone:"605-385-1479" },
-  { name:"F.E. Warren AFB",                    branch:"Air Force",   office:"Traffic Management Office",                       phone:"307-773-3605" },
-  { name:"Fairchild AFB",                      branch:"Air Force",   office:"Traffic Management Office",                       phone:"509-247-2261" },
-  { name:"Fort Belvoir",                       branch:"Army",        office:"Transportation Office",                           phone:"703-805-2075" },
-  { name:"Fort Bliss",                         branch:"Army",        office:"Transportation Office",                           phone:"915-744-2252" },
-  { name:"Fort Bragg",                         branch:"Army",        office:"Transportation Office",                           phone:"910-396-0711" },
-  { name:"Fort Buchanan",                      branch:"Army",        office:"Transportation Office",                           phone:"787-707-3510" },
-  { name:"Fort Campbell",                      branch:"Army",        office:"Transportation Office",                           phone:"270-798-5577" },
-  { name:"Fort Carson",                        branch:"Army",        office:"Transportation Office",                           phone:"719-526-5570" },
-  { name:"Fort Detrick",                       branch:"Army",        office:"Transportation Office",                           phone:"301-619-2109" },
-  { name:"Fort Drum",                          branch:"Army",        office:"Transportation Office",                           phone:"315-772-5886" },
-  { name:"Fort Gordon",                        branch:"Army",        office:"Transportation Office",                           phone:"706-791-5649" },
-  { name:"Fort Hamilton",                      branch:"Army",        office:"Transportation Office",                           phone:"718-630-4815" },
-  { name:"Fort Hood",                          branch:"Army",        office:"Transportation Office",                           phone:"254-287-5496" },
-  { name:"Fort Huachuca",                      branch:"Army",        office:"Transportation Office",                           phone:"520-533-2027" },
-  { name:"Fort Hunter Liggett",                branch:"Army",        office:"Transportation Office",                           phone:"831-386-2503" },
-  { name:"Fort Irwin",                         branch:"Army",        office:"Transportation Office",                           phone:"760-380-3614" },
-  { name:"Fort Jackson",                       branch:"Army",        office:"Transportation Office",                           phone:"803-751-5805" },
-  { name:"Fort Knox",                          branch:"Army",        office:"Transportation Office",                           phone:"502-624-5541" },
-  { name:"Fort Leavenworth",                   branch:"Army",        office:"Transportation Office",                           phone:"913-684-2876" },
-  { name:"Fort Lee",                           branch:"Army",        office:"Transportation Office",                           phone:"804-765-0438" },
-  { name:"Fort Leonard Wood",                  branch:"Army",        office:"Transportation Office",                           phone:"573-596-0131" },
-  { name:"Fort McCoy",                         branch:"Army",        office:"Transportation Office",                           phone:"608-388-3359" },
-  { name:"Fort Meade",                         branch:"Army",        office:"Transportation Office",                           phone:"301-677-6871" },
-  { name:"Fort Myer / Henderson Hall",         branch:"Army",        office:"Transportation Office",                           phone:"703-696-3830" },
-  { name:"Fort Polk",                          branch:"Army",        office:"Transportation Office",                           phone:"337-531-1545" },
-  { name:"Fort Riley",                         branch:"Army",        office:"Transportation Office",                           phone:"785-239-9935" },
-  { name:"Fort Rucker",                        branch:"Army",        office:"Transportation Office",                           phone:"334-255-3517" },
-  { name:"Fort Sill",                          branch:"Army",        office:"Transportation Office",                           phone:"580-442-3023" },
-  { name:"Fort Stewart",                       branch:"Army",        office:"Transportation Office",                           phone:"912-767-8823" },
-  { name:"Goodfellow AFB",                     branch:"Air Force",   office:"Traffic Management Office",                       phone:"325-654-3597" },
-  { name:"Grand Forks AFB",                    branch:"Air Force",   office:"Traffic Management Office",                       phone:"701-747-4624" },
-  { name:"Hanscom AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"781-377-5390" },
-  { name:"Hill AFB",                           branch:"Air Force",   office:"Traffic Management Office",                       phone:"801-586-2500" },
-  { name:"Holloman AFB",                       branch:"Air Force",   office:"Traffic Management Office",                       phone:"575-572-5672" },
-  { name:"Hurlburt Field",                     branch:"Air Force",   office:"Traffic Management Office",                       phone:"850-884-7838" },
-  { name:"Incirlik AB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 676-3367" },
-  { name:"JEB Little Creek-Fort Story",        branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-462-7857" },
-  { name:"Joint Base Anacostia-Bolling",       branch:"Air Force",   office:"Traffic Management Office",                       phone:"202-767-4488" },
-  { name:"Joint Base Andrews",                 branch:"Air Force",   office:"Traffic Management Office",                       phone:"301-981-2551" },
-  { name:"Joint Base Charleston",              branch:"Air Force",   office:"Traffic Management Office",                       phone:"843-963-5950" },
-  { name:"Joint Base Elmendorf-Richardson",    branch:"Air Force",   office:"Traffic Management Office",                       phone:"907-552-3482" },
-  { name:"Joint Base Langley-Eustis",          branch:"Air Force",   office:"Traffic Management Office",                       phone:"757-764-2347" },
-  { name:"Joint Base Lewis-McChord",           branch:"Army",        office:"Transportation Office",                           phone:"253-967-5745" },
-  { name:"Joint Base McGuire-Dix-Lakehurst",   branch:"Air Force",   office:"Traffic Management Office",                       phone:"609-754-2700" },
-  { name:"Joint Base Pearl Harbor-Hickam",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"808-473-7432" },
-  { name:"Joint Base San Antonio",             branch:"Air Force",   office:"Traffic Management Office",                       phone:"210-652-5034" },
-  { name:"Joint Region Marianas - Andersen AFB", branch:"Air Force", office:"Traffic Management Office",                       phone:"DSN 366-5440" },
-  { name:"Joint Region Marianas - Naval Base Guam", branch:"Navy",   office:"Personal Property Shipping Office (PPSO)",         phone:"671-339-7512" },
-  { name:"Kadena AB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 634-1828" },
-  { name:"Keesler AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"228-377-3968" },
-  { name:"Kirtland Air Force Base",            branch:"Air Force",   office:"Traffic Management Office",                       phone:"505-846-1153" },
-  { name:"Kunsan AB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 782-6046" },
-  { name:"Lajes Field",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 535-1110" },
-  { name:"Laughlin AFB",                       branch:"Air Force",   office:"Traffic Management Flight",                       phone:"830-298-5615" },
-  { name:"Little Rock AFB",                    branch:"Air Force",   office:"Traffic Management Office",                       phone:"501-987-6551" },
-  { name:"Los Angeles SFB",                    branch:"Space Force", office:"Traffic Management Office",                       phone:"310-653-5048" },
-  { name:"Luke AFB",                           branch:"Air Force",   office:"Traffic Management Office",                       phone:"623-856-6030" },
-  { name:"MacDill AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"813-828-2831" },
-  { name:"Malmstrom AFB",                      branch:"Air Force",   office:"Traffic Management Office",                       phone:"406-731-3838" },
-  { name:"March ARB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"951-655-4081" },
-  { name:"Marine Corps Air Station Iwakuni",   branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"DSN 253-5174" },
-  { name:"Marine Corps Air Station Miramar",   branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"858-577-4572" },
-  { name:"Marine Corps Base Quantico",         branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"703-784-2607" },
-  { name:"Marine Corps Logistics Base Albany", branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"229-639-7372" },
-  { name:"Maxwell AFB / Gunter Annex",         branch:"Air Force",   office:"Traffic Management Office",                       phone:"334-953-7447" },
-  { name:"MCAS Beaufort",                      branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"843-228-7152" },
-  { name:"MCAS Cherry Point",                  branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"252-466-2552" },
-  { name:"MCAS New River",                     branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"910-449-6076" },
-  { name:"MCAS Yuma",                          branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"928-269-2628" },
-  { name:"MCB Hawaii",                         branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"808-257-7606" },
-  { name:"McConnell AFB",                      branch:"Air Force",   office:"Traffic Management Office",                       phone:"316-759-5580" },
-  { name:"MCRD Parris Island",                 branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"843-228-2174" },
-  { name:"MCRD San Diego",                     branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"619-524-4524" },
-  { name:"Minot AFB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"701-723-3282" },
-  { name:"Misawa AB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 226-3375" },
-  { name:"Moody AFB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"229-257-3801" },
-  { name:"Mountain Home AFB",                  branch:"Air Force",   office:"Traffic Management Office",                       phone:"208-828-2631" },
-  { name:"Naval Air Facility Atsugi",          branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 264-3282" },
-  { name:"Naval Air Station Corpus Christi",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"361-961-2175" },
-  { name:"Naval Air Station Fallon",           branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"775-426-2866" },
-  { name:"Naval Air Station Jacksonville",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"904-542-3484" },
-  { name:"Naval Air Station JRB Fort Worth",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"817-782-5739" },
-  { name:"Naval Air Station Key West",         branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"305-293-2457" },
-  { name:"Naval Air Station Lemoore",          branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"559-998-4811" },
-  { name:"Naval Air Station Meridian",         branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"601-679-2323" },
-  { name:"Naval Air Station Oceana",           branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-433-2831" },
-  { name:"Naval Air Station Patuxent River",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"301-342-3132" },
-  { name:"Naval Air Station Pensacola",        branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"850-452-2562" },
-  { name:"Naval Air Station Sigonella",        branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 624-5428" },
-  { name:"Naval Air Station Whidbey Island",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"360-257-2335" },
-  { name:"Naval Air Station Whiting Field",    branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"850-623-7442" },
-  { name:"Naval Air Weapons Station China Lake", branch:"Navy",      office:"Personal Property Shipping Office (PPSO)",         phone:"760-939-3014" },
-  { name:"Naval Base Coronado",                branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"619-522-8557" },
-  { name:"Naval Base Kitsap",                  branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"360-396-0333" },
-  { name:"Naval Base Point Loma",              branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"619-553-9255" },
-  { name:"Naval Base San Diego",               branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"619-556-7886" },
-  { name:"Naval Base Ventura County",          branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"805-982-4227" },
-  { name:"Naval Construction Battalion Center Gulfport", branch:"Navy", office:"Personal Property Shipping Office (PPSO)",      phone:"228-871-2628" },
-  { name:"Naval Medical Center Portsmouth",    branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-953-7512" },
-  { name:"Naval Station Everett",              branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"425-304-3455" },
-  { name:"Naval Station Great Lakes",          branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"847-688-4720" },
-  { name:"Naval Station Guantanamo Bay",       branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"011-5399-2444" },
-  { name:"Naval Station Mayport",              branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"904-270-6617" },
-  { name:"Naval Station Newport",              branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"401-841-3175" },
-  { name:"Naval Station Norfolk",              branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-444-2554" },
-  { name:"Naval Station Rota",                 branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 727-1628" },
-  { name:"Naval Submarine Base Kings Bay",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"912-573-4237" },
-  { name:"Naval Submarine Base New London",    branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"860-694-3523" },
-  { name:"Naval Support Activity Annapolis",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"410-293-2866" },
-  { name:"Naval Support Activity Bahrain",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 318-439-7676" },
-  { name:"Naval Support Activity Bethesda",    branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"301-295-0820" },
-  { name:"Naval Support Activity Hampton Roads", branch:"Navy",      office:"Personal Property Shipping Office (PPSO)",         phone:"757-764-7512" },
-  { name:"Naval Support Activity Mechanicsburg", branch:"Navy",      office:"Personal Property Shipping Office (PPSO)",         phone:"717-605-2628" },
-  { name:"Naval Support Activity Mid-South",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"901-874-5610" },
-  { name:"Naval Support Activity Monterey",    branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"831-656-3555" },
-  { name:"Naval Support Activity Naples",      branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 629-6628" },
-  { name:"Naval Support Activity Orlando",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"407-380-8867" },
-  { name:"Naval Support Activity Panama City", branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"850-234-4651" },
-  { name:"Naval Support Activity Philadelphia", branch:"Navy",       office:"Personal Property Shipping Office (PPSO)",         phone:"215-697-3300" },
-  { name:"Naval Support Activity Washington",  branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"202-433-3295" },
-  { name:"Naval Weapons Station Earle",        branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"732-866-2628" },
-  { name:"Naval Weapons Station Seal Beach",   branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"562-626-7512" },
-  { name:"Naval Weapons Station Yorktown",     branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-887-4628" },
-  { name:"Navy Support Facility Diego Garcia", branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"DSN 370-4628" },
-  { name:"Nellis AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"702-652-9812" },
-  { name:"Norfolk Naval Shipyard",             branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"757-396-7512" },
-  { name:"Offutt AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"402-294-3690" },
-  { name:"Osan Air Base",                      branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 784-4628" },
-  { name:"Patrick SFB",                        branch:"Space Force", office:"Traffic Management Office",                       phone:"321-494-6811" },
-  { name:"Pentagon",                           branch:"Air Force",   office:"Traffic Management Office",                       phone:"703-697-4628" },
-  { name:"Peterson SFB",                       branch:"Space Force", office:"Traffic Management Office",                       phone:"719-556-7512" },
-  { name:"Picatinny Arsenal",                  branch:"Army",        office:"Transportation Office",                           phone:"973-724-4628" },
-  { name:"Pope Army Airfield",                 branch:"Army",        office:"Transportation Office",                           phone:"910-394-2628" },
-  { name:"Portsmouth Naval Shipyard",          branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"207-438-2628" },
-  { name:"Presidio of Monterey (DLI/FLC)",     branch:"Army",        office:"Transportation Office",                           phone:"831-242-5765" },
-  { name:"RAF Lakenheath",                     branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 226-2628" },
-  { name:"RAF Mildenhall",                     branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 238-2628" },
-  { name:"Ramstein AB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 480-2628" },
-  { name:"Redstone Arsenal",                   branch:"Army",        office:"Transportation Office",                           phone:"256-876-4628" },
-  { name:"Robins AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"478-926-2628" },
-  { name:"Rock Island Arsenal",                branch:"Army",        office:"Transportation Office",                           phone:"309-782-4628" },
-  { name:"Schriever SFB",                      branch:"Space Force", office:"Traffic Management Office",                       phone:"719-567-2628" },
-  { name:"Scott Air Force Base",               branch:"Air Force",   office:"Traffic Management Office",                       phone:"618-256-4628" },
-  { name:"Seymour Johnson AFB",                branch:"Air Force",   office:"Traffic Management Office",                       phone:"919-722-2628" },
-  { name:"Shaw Air Force Base",                branch:"Air Force",   office:"Traffic Management Office",                       phone:"803-895-2628" },
-  { name:"Sheppard AFB",                       branch:"Air Force",   office:"Traffic Management Office",                       phone:"940-676-2628" },
-  { name:"Spangdahlem AB",                     branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 452-7512" },
-  { name:"Stennis Space Center",               branch:"Navy",        office:"Personal Property Shipping Office (PPSO)",         phone:"228-688-4628" },
-  { name:"Tinker AFB",                         branch:"Air Force",   office:"Traffic Management Office",                       phone:"405-739-2628" },
-  { name:"Tobyhanna Army Depot",               branch:"Army",        office:"Transportation Office",                           phone:"570-615-7512" },
-  { name:"Travis Air Force Base",              branch:"Air Force",   office:"Traffic Management Office",                       phone:"707-424-2628" },
-  { name:"Twentynine Palms (MCAGCC)",          branch:"Marines",     office:"Distribution Management Office (DMO)",             phone:"760-830-7512" },
-  { name:"Tyndall AFB",                        branch:"Air Force",   office:"Traffic Management Office",                       phone:"850-283-2628" },
-  { name:"U.S. Army Garrison White Sands",     branch:"Army",        office:"Transportation Office",                           phone:"575-678-2628" },
-  { name:"USAF Academy",                       branch:"Air Force",   office:"Traffic Management Office",                       phone:"719-333-2628" },
-  { name:"USAG Alaska (Fort Wainwright)",       branch:"Army",        office:"Transportation Office",                           phone:"907-353-7512" },
-  { name:"USAG Ansbach",                       branch:"Army",        office:"Transportation Office",                           phone:"DSN 467-2628" },
-  { name:"USAG Bavaria",                       branch:"Army",        office:"Transportation Office",                           phone:"DSN 469-7512" },
-  { name:"USAG BENELUX-SHAPE/Chievres",        branch:"Army",        office:"Transportation Office",                           phone:"DSN 423-2628" },
-  { name:"USAG Daegu",                         branch:"Army",        office:"Transportation Office",                           phone:"DSN 764-4628" },
-  { name:"USAG Hawaii",                        branch:"Army",        office:"Transportation Office",                           phone:"808-655-4628" },
-  { name:"USAG Humphreys",                     branch:"Army",        office:"Transportation Office",                           phone:"DSN 753-7512" },
-  { name:"USAG Italy",                         branch:"Army",        office:"Transportation Office",                           phone:"DSN 636-7512" },
-  { name:"USAG Japan (Zama)",                  branch:"Army",        office:"Transportation Office",                           phone:"DSN 263-4628" },
-  { name:"USAG Miami",                         branch:"Army",        office:"Transportation Office",                           phone:"305-437-2628" },
-  { name:"USAG Rheinland-Pfalz (Kaiserslautern)", branch:"Army",     office:"Transportation Office",                           phone:"DSN 483-7512" },
-  { name:"USAG Rheinland-Pfalz (Baumholder)",  branch:"Army",        office:"Transportation Office",                           phone:"DSN 485-7512" },
-  { name:"USAG Stuttgart",                     branch:"Army",        office:"Transportation Office",                           phone:"DSN 421-2628" },
-  { name:"USAG Wiesbaden",                     branch:"Army",        office:"Transportation Office",                           phone:"DSN 337-7512" },
-  { name:"USAG Yongsan-Casey",                 branch:"Army",        office:"Transportation Office",                           phone:"DSN 738-2628" },
-  { name:"United States Military Academy (West Point)", branch:"Army", office:"Transportation Office",                         phone:"845-938-4628" },
-  { name:"Vance AFB",                          branch:"Air Force",   office:"Traffic Management Flight",                       phone:"580-213-5765" },
-  { name:"Vandenberg SFB",                     branch:"Space Force", office:"Traffic Management Office",                       phone:"805-606-2628" },
-  { name:"Whiteman AFB",                       branch:"Air Force",   office:"Traffic Management Office",                       phone:"660-687-7512" },
-  { name:"Wright-Patterson AFB",               branch:"Air Force",   office:"Traffic Management Office",                       phone:"937-257-7512" },
-  { name:"Yokota AB",                          branch:"Air Force",   office:"Traffic Management Office",                       phone:"DSN 225-7512" },
-  { name:"Yuma Proving Ground",                branch:"Army",        office:"Transportation Office",                           phone:"928-328-2628" },
-].sort((a,b)=>a.name.localeCompare(b.name));
-
-const INST_MAP = Object.fromEntries(INSTALLATION_DATA.map(i=>[i.name,i]));
-
-// ════════════════════════════════════════════════════════════
-// STATE
-// ════════════════════════════════════════════════════════════
-
-let state = {
-  currentPage: 'home',
-  phase: null,
-  checked: {},          // infraction id → bool
-  notes: {},            // infraction id → text
-  photos: {},           // infraction id → [{name, dataUrl}]
-  globalPhotos: [],     // [{name, dataUrl}] — general report photos
-  member: { rank:'', name:'', unit:'', installation:'', installationPhone:'', installationOffice:'', providerName:'' },
-  selectedOffice: null,
-  customOffice: { name:'', contact:'' },
-  reportId: genId(),
-  allReports: [],
-  filterPhase: 'All',
-  filterSev: 'All',
-  expandedReport: null,
-  lastReport: null,
-};
-
-function genId() {
-  return 'RPT-' + Date.now().toString(36).toUpperCase().slice(-6);
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-
-// ════════════════════════════════════════════════════════════
-// STORAGE (in-memory — shared storage not available in plain HTML)
-// ════════════════════════════════════════════════════════════
-
-const STORE_KEY = 'dtss_reports_v2';
-
-function saveToStorage(report) {
-  try {
-    const existing = loadFromStorage();
-    existing.push(report);
-    sessionStorage.setItem(STORE_KEY, JSON.stringify(existing));
-    localStorage.setItem(STORE_KEY, JSON.stringify(existing));
-  } catch(e) { console.warn('Storage write failed', e); }
-}
-
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY) || sessionStorage.getItem(STORE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch(e) { return []; }
-}
-
-// ════════════════════════════════════════════════════════════
-// NAVIGATION
-// ════════════════════════════════════════════════════════════
-
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const pg = document.getElementById('page-' + id);
-  pg.classList.add('active');
-  pg.classList.remove('fade');
-  void pg.offsetWidth;
-  pg.classList.add('fade');
-  state.currentPage = id;
-  window.scrollTo(0,0);
-
-  // Toggle admin/field header button
-  const adminBtn = document.getElementById('adminBtn');
-  if (id === 'admin' || id === 'adminlogin') {
-    adminBtn.textContent = '← FIELD VIEW';
-    adminBtn.onclick = goHome;
-  } else {
-    adminBtn.textContent = 'ADMIN DASHBOARD →';
-    adminBtn.onclick = goAdminLogin;
-  }
-}
-
-function goHome() { showPage('home'); }
-function goSurvey() { showPage('survey'); }
-function goAdminLogin() { document.getElementById('f-pin').value=''; document.getElementById('pin-error').style.display='none'; showPage('adminlogin'); }
-
-// ════════════════════════════════════════════════════════════
-// HOME → SURVEY
-// ════════════════════════════════════════════════════════════
-
-function startPhase(phase) {
-  state.phase = phase;
-  state.checked = {};
-  state.notes = {};
-  state.photos = {};
-  state.globalPhotos = [];
-
-  document.getElementById('surveyPhaseLabel').textContent = 'PHASE // ' + phase.toUpperCase();
-  document.getElementById('infractionListTitle').textContent = 'SELECT ALL OBSERVED INFRACTIONS — ' + phase.toUpperCase() + ' PHASE';
-
-  // Populate installation dropdown once
-  const sel = document.getElementById('f-installation');
-  if (sel.options.length <= 1) {
-    INSTALLATION_DATA.forEach(inst => {
-      const opt = document.createElement('option');
-      opt.value = inst.name;
-      opt.textContent = inst.name + ' (' + inst.branch + ')';
-      sel.appendChild(opt);
-    });
-  }
-
-  // Clear form
-  ['f-rank','f-name','f-unit','f-provider'].forEach(id => document.getElementById(id).value = '');
-  sel.value = '';
-  document.getElementById('autofill-office-wrap').style.display = 'none';
-  document.getElementById('autofill-phone-wrap').style.display = 'none';
-  document.getElementById('flaggedBadge').classList.add('hidden');
-
-  renderInfractions();
-  updateProceedBtn();
-  showPage('survey');
-}
-
-function onInstallationChange() {
-  const name = document.getElementById('f-installation').value;
-  const inst = INST_MAP[name];
-  if (inst) {
-    document.getElementById('autofill-office').textContent = inst.office;
-    document.getElementById('autofill-phone').textContent = '📞 ' + inst.phone;
-    document.getElementById('autofill-office-wrap').style.display = 'block';
-    document.getElementById('autofill-phone-wrap').style.display = 'block';
-    state.member.installationOffice = inst.office;
-    state.member.installationPhone = inst.phone;
-  } else {
-    document.getElementById('autofill-office-wrap').style.display = 'none';
-    document.getElementById('autofill-phone-wrap').style.display = 'none';
-    state.member.installationOffice = '';
-    state.member.installationPhone = '';
-  }
-  state.member.installation = name;
-  updateProceedBtn();
-}
-
-// ════════════════════════════════════════════════════════════
-// INFRACTION LIST
-// ════════════════════════════════════════════════════════════
-
-function renderInfractions() {
-  const list = document.getElementById('infraction-list');
-  list.innerHTML = '';
-  let lastSection = null;
-  (INFRACTIONS[state.phase] || []).forEach(inf => {
-    // Insert section header when section changes (for Pack & Pickup)
-    if (inf.section && inf.section !== lastSection) {
-      lastSection = inf.section;
-      const hdr = document.createElement('div');
-      hdr.style.cssText = 'font-size:10px;color:var(--green);letter-spacing:2px;padding:10px 0 6px;border-bottom:1px solid rgba(0,255,136,.15);margin-bottom:8px;margin-top:' + (lastSection==='PACKING'?'0':'16px');
-      hdr.textContent = '── ' + inf.section + ' INFRACTIONS';
-      list.appendChild(hdr);
-    }
-    const row = document.createElement('div');
-    row.className = 'inf-row' + (state.checked[inf.id] ? ' selected' : '');
-    row.id = 'inf-row-' + inf.id;
-    row.onclick = () => toggleInfraction(inf.id);
-    const s = SEV_STYLE[inf.severity];
-    row.innerHTML = `
-      <div class="chk${state.checked[inf.id]?' on':''}" id="chk-${inf.id}"></div>
-      <div class="inf-content">
-        <div class="inf-meta">
-          <span class="inf-code">[${inf.code}]</span>
-          <span class="tag ${s.tagCls}">${inf.severity.toUpperCase()}</span>
-        </div>
-        <div class="inf-label" id="lbl-${inf.id}">${inf.label}</div>
-        <div id="extras-${inf.id}" class="${state.checked[inf.id]?'':'hidden'}">
-          <div class="inf-notes">
-            <textarea rows="2" placeholder="Add notes / details (optional)" onclick="event.stopPropagation()"
-              onchange="state.notes['${inf.id}']=this.value"
-              oninput="state.notes['${inf.id}']=this.value"
-              style="font-size:12px;">${state.notes[inf.id]||''}</textarea>
-          </div>
-          <div class="photo-upload-area" id="drop-${inf.id}"
-            onclick="event.stopPropagation();document.getElementById('file-${inf.id}').click()"
-            ondragover="event.preventDefault();this.classList.add('drag-over')"
-            ondragleave="this.classList.remove('drag-over')"
-            ondrop="event.stopPropagation();handleDrop(event,'${inf.id}')">
-            <div style="font-size:11px;color:var(--text-dim);letter-spacing:1px;">📷 CLICK OR DRAG TO ATTACH PHOTOS</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:4px;">JPG, PNG, HEIC — evidence documentation</div>
-            <input type="file" id="file-${inf.id}" accept="image/*" multiple style="display:none"
-              onclick="event.stopPropagation()"
-              onchange="handleFileInput(event,'${inf.id}')">
-          </div>
-          <div class="photo-grid" id="photos-${inf.id}"></div>
-        </div>
-      </div>`;
-    list.appendChild(row);
-  });
-}
-
-function toggleInfraction(id) {
-  state.checked[id] = !state.checked[id];
-  const row = document.getElementById('inf-row-' + id);
-  const chk = document.getElementById('chk-' + id);
-  const extras = document.getElementById('extras-' + id);
-  if (state.checked[id]) {
-    row.classList.add('selected');
-    chk.classList.add('on');
-    extras.classList.remove('hidden');
-  } else {
-    row.classList.remove('selected');
-    chk.classList.remove('on');
-    extras.classList.add('hidden');
-  }
-  updateFlaggedBadge();
-  updateSevSummary();
-  updateProceedBtn();
-}
-
-function updateFlaggedBadge() {
-  const n = Object.values(state.checked).filter(Boolean).length;
-  const badge = document.getElementById('flaggedBadge');
-  if (n > 0) { badge.textContent = n + ' FLAGGED'; badge.classList.remove('hidden'); }
-  else badge.classList.add('hidden');
-}
-
-function updateSevSummary() {
-  const selected = getSelectedInfractions();
-  const ss = document.getElementById('sev-summary');
-  if (selected.length === 0) { ss.classList.add('hidden'); return; }
-  ss.classList.remove('hidden');
-  ss.style.display = 'flex';
-  const counts = { Critical:0, Major:0, Minor:0 };
-  selected.forEach(i => counts[i.severity]++);
-  ss.innerHTML = Object.entries(counts).filter(([,v])=>v>0).map(([sev,n]) =>
-    `<span class="tag ${SEV_STYLE[sev].tagCls}" style="font-size:11px;">● ${n} ${sev.toUpperCase()}</span>`
-  ).join('');
-}
-
-function getSelectedInfractions() {
-  return (INFRACTIONS[state.phase] || []).filter(i => state.checked[i.id]);
-}
-
-function updateProceedBtn() {
-  const rank = document.getElementById('f-rank').value.trim();
-  const name = document.getElementById('f-name').value.trim();
-  const inst = document.getElementById('f-installation').value;
-  const provider = document.getElementById('f-provider').value.trim();
-  const hasInfractions = Object.values(state.checked).some(Boolean);
-  const ok = rank && name && inst && provider && hasInfractions;
-  document.getElementById('proceedBtn').disabled = !ok;
-}
-
-// Input listeners
-['f-rank','f-name','f-unit','f-provider'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
-    const fid = id.replace('f-','');
-    state.member[fid === 'provider' ? 'providerName' : fid] = document.getElementById(id).value;
-    updateProceedBtn();
-  });
-});
-
-// ════════════════════════════════════════════════════════════
-// PHOTO HANDLING
-// ════════════════════════════════════════════════════════════
-
-function handleFileInput(event, infId) {
-  const files = Array.from(event.target.files);
-  processFiles(files, infId);
-}
-
-function handleDrop(event, infId) {
-  event.preventDefault();
-  document.getElementById('drop-' + infId).classList.remove('drag-over');
-  const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  processFiles(files, infId);
-}
-
-function processFiles(files, infId) {
-  if (!state.photos[infId]) state.photos[infId] = [];
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = e => {
-      state.photos[infId].push({ name: file.name, dataUrl: e.target.result });
-      renderPhotoGrid(infId);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function renderPhotoGrid(infId) {
-  const grid = document.getElementById('photos-' + infId);
-  if (!grid) return;
-  const photos = state.photos[infId] || [];
-  grid.innerHTML = photos.map((p, idx) => `
-    <div class="photo-thumb">
-      <img src="${p.dataUrl}" alt="${p.name}">
-      <button class="remove-photo" onclick="event.stopPropagation();removePhoto('${infId}',${idx})">✕</button>
-      <div class="photo-caption">IMG ${idx+1}</div>
-    </div>`).join('');
-}
-
-function removePhoto(infId, idx) {
-  state.photos[infId].splice(idx, 1);
-  renderPhotoGrid(infId);
-}
-
-// ════════════════════════════════════════════════════════════
-// SURVEY → REPORT
-// ════════════════════════════════════════════════════════════
-
-function goReport() {
-  // Sync member fields
-  state.member.rank = document.getElementById('f-rank').value.trim();
-  state.member.name = document.getElementById('f-name').value.trim();
-  state.member.unit = document.getElementById('f-unit').value.trim();
-  state.member.providerName = document.getElementById('f-provider').value.trim();
-  state.member.installation = document.getElementById('f-installation').value;
-
-  const selected = getSelectedInfractions();
-
-  // Report summary
-  document.getElementById('report-id-label').textContent = `REPORT SUMMARY // ${state.reportId}`;
-  document.getElementById('report-id-footer').textContent = `ID: ${state.reportId}`;
-
-  const sumGrid = document.getElementById('report-summary-grid');
-  const cells = [
-    ['MEMBER', `${state.member.rank} ${state.member.name}`],
-    ['UNIT', state.member.unit || '—'],
-    ['INSTALLATION', state.member.installation || '—'],
-    ['TMO/PPSO PHONE', state.member.installationPhone || '—'],
-    ['TSP', state.member.providerName],
-    ['PHASE', state.phase],
-  ];
-  sumGrid.innerHTML = cells.map(([k,v]) => `
-    <div class="sum-cell">
-      <div class="sum-cell-label">${k}</div>
-      <div class="sum-cell-val">${v}</div>
-    </div>`).join('');
-
-  document.getElementById('report-infractions-title').textContent = `FLAGGED INFRACTIONS (${selected.length})`;
-  const infList = document.getElementById('report-infractions-list');
-  infList.innerHTML = selected.map(inf => {
-    const s = SEV_STYLE[inf.severity];
-    const note = state.notes[inf.id] ? `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic;">Note: ${state.notes[inf.id]}</div>` : '';
-    const photos = (state.photos[inf.id] || []);
-    const photoHtml = photos.length ? `<div class="report-photos">${photos.map((p,i)=>`<div class="report-photo"><img src="${p.dataUrl}" alt="Photo ${i+1}"><div class="report-photo-label">📷 ${p.name.slice(0,18)}</div></div>`).join('')}</div>` : '';
-    return `<div class="inf-summary" style="border-left:${s.borderLeft};background:${s.bg};margin-bottom:7px;padding:9px 11px;">
-      <span class="tag ${s.tagCls}" style="font-size:10px;">[${inf.code}] ${inf.severity.toUpperCase()}</span>
-      <div style="font-size:13px;color:#fff;margin-top:4px;">${inf.label}</div>
-      ${note}${photoHtml}
-    </div>`;
-  }).join('');
-
-  // Photos section
-  const totalPhotos = Object.values(state.photos).reduce((a,b)=>a+b.length,0);
-  if (totalPhotos > 0) {
-    document.getElementById('report-photos-section').classList.remove('hidden');
-    const pg = document.getElementById('report-photos-grid');
-    pg.innerHTML = Object.entries(state.photos).flatMap(([infId, photos]) => {
-      const inf = (INFRACTIONS[state.phase]||[]).find(i=>i.id===infId);
-      return photos.map((p,i)=>`<div class="report-photo"><img src="${p.dataUrl}" alt="${p.name}"><div class="report-photo-label">${inf?inf.code:'IMG'} · ${i+1}</div></div>`);
-    }).join('');
-  } else {
-    document.getElementById('report-photos-section').classList.add('hidden');
-  }
-
-  // Offices
-  buildOfficeList();
-  document.getElementById('submitBtn').disabled = true;
-  showPage('report');
-}
-
-function buildOfficeList() {
-  const list = document.getElementById('office-list');
-  state.selectedOffice = null;
-  list.innerHTML = OFFICES.map(o => `
-    <div class="off-opt" id="off-${o.id}" onclick="selectOffice('${o.id}')">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-size:13px;color:#fff;font-weight:bold;">${o.name}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${o.branch}${o.contact?' · '+o.contact:''}</div>
-        </div>
-        <div class="off-radio" id="radio-${o.id}"></div>
-      </div>
-    </div>`).join('');
-}
-
-function selectOffice(id) {
-  state.selectedOffice = OFFICES.find(o=>o.id===id);
-  document.querySelectorAll('.off-opt').forEach(el => el.classList.remove('selected'));
-  document.querySelectorAll('.off-radio').forEach(el => el.classList.remove('on'));
-  document.getElementById('off-'+id).classList.add('selected');
-  document.getElementById('radio-'+id).classList.add('on');
-
-  const custom = document.getElementById('custom-office-wrap');
-  if (id === 'O7') { custom.classList.remove('hidden'); }
-  else { custom.classList.add('hidden'); }
-
-  updateSubmitBtn();
-}
-
-function updateSubmitBtn() {
-  if (!state.selectedOffice) { document.getElementById('submitBtn').disabled = true; return; }
-  if (state.selectedOffice.id === 'O7') {
-    const n = document.getElementById('f-custom-office').value.trim();
-    const c = document.getElementById('f-custom-contact').value.trim();
-    document.getElementById('submitBtn').disabled = !(n && c);
-  } else {
-    document.getElementById('submitBtn').disabled = false;
-  }
-}
-
-['f-custom-office','f-custom-contact'].forEach(id => {
-  document.getElementById(id).addEventListener('input', updateSubmitBtn);
-});
-
-// ════════════════════════════════════════════════════════════
-// SUBMIT
-// ════════════════════════════════════════════════════════════
-
-function submitReport() {
-  const officeName = state.selectedOffice.id === 'O7'
-    ? document.getElementById('f-custom-office').value.trim()
-    : state.selectedOffice.name;
-  const officeContact = state.selectedOffice.id === 'O7'
-    ? document.getElementById('f-custom-contact').value.trim()
-    : state.selectedOffice.contact;
-
-  const selected = getSelectedInfractions();
-  const report = {
-    id: state.reportId,
-    timestamp: Date.now(),
-    date: new Date().toLocaleString(),
-    phase: state.phase,
-    ...state.member,
-    officeName,
-    officeContact,
-    infractions: selected.map(i => ({
-      ...i,
-      note: state.notes[i.id] || '',
-      photos: (state.photos[i.id] || []).map(p => ({ name: p.name, dataUrl: p.dataUrl })),
-    })),
-  };
-
-  saveToStorage(report);
-  state.lastReport = report;
-  state.allReports = loadFromStorage();
-
-  // Confirm page
-  document.getElementById('confirm-id').textContent = state.reportId;
-
-  const counts = { Critical:0, Major:0, Minor:0 };
-  selected.forEach(i => counts[i.severity]++);
-  const totalPh = Object.values(state.photos).reduce((a,b)=>a+b.length,0);
-
-  const details = [
-    ['Reported To', officeName],
-    ['Contact', officeContact || '—'],
-    ['Phase', state.phase],
-    ['Infractions', selected.length + ' item(s)'],
-    ['Photos Attached', totalPh + ' image(s)'],
-    ['Installation', state.member.installation || '—'],
-    ['TMO/PPSO Phone', state.member.installationPhone || '—'],
-    ['TSP', state.member.providerName],
-    ['Member', `${state.member.rank} ${state.member.name}`],
-  ];
-  document.getElementById('confirm-details').innerHTML = details.map(([k,v]) => `
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;">
-      <span style="color:var(--text-dim);">${k}</span>
-      <span style="color:#fff;">${v}</span>
-    </div>`).join('');
-
-  showToast('Report submitted successfully', 'success');
-  showPage('confirm');
-}
-
-// ════════════════════════════════════════════════════════════
-// PRINT / EMAIL
-// ════════════════════════════════════════════════════════════
-
-function buildPrintHtml(report) {
-  const items = report.infractions || [];
-  const rows = items.map(inf => {
-    const photoHtml = (inf.photos||[]).length
-      ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">${(inf.photos||[]).map(p=>`<img src="${p.dataUrl}" style="width:80px;height:80px;object-fit:cover;border:1px solid #ccc;">`).join('')}</div>`
-      : '';
-    return `<tr>
-      <td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;vertical-align:top;">${inf.code}</td>
-      <td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;vertical-align:top;">${inf.severity}</td>
-      <td style="padding:6px 8px;border:1px solid #ccc;font-size:11px;vertical-align:top;">${inf.label}${inf.note?'<br><em>'+inf.note+'</em>':''}${photoHtml}</td>
-    </tr>`;
-  }).join('');
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>DTSS ${report.id}</title>
-  <style>
-    body{font-family:'Courier New',monospace;margin:40px;color:#111;font-size:12px;}
-    .hdr{border-bottom:3px solid #000;padding-bottom:12px;margin-bottom:20px;}
-    .title{font-size:18px;font-weight:bold;letter-spacing:2px;}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:20px;border:1px solid #ccc;}
-    .cell{padding:8px 12px;border-bottom:1px solid #eee;border-right:1px solid #eee;}
-    .lbl{font-size:9px;letter-spacing:1px;color:#666;text-transform:uppercase;}
-    .val{font-size:12px;font-weight:bold;margin-top:2px;}
-    table{width:100%;border-collapse:collapse;margin-top:8px;}
-    th{background:#111;color:#fff;padding:7px 8px;font-size:10px;letter-spacing:1px;text-align:left;}
-    .foot{margin-top:30px;font-size:10px;color:#888;border-top:1px solid #ccc;padding-top:10px;}
-    @media print{body{margin:20px}}
-  </style></head><body>
-  <div class="hdr">
-    <div class="title">DEFENSE TRANSPORTATION SURVEILLANCE SYSTEM</div>
-    <div style="font-size:11px;letter-spacing:1px;color:#444;margin-top:4px;">
-      TSP PERFORMANCE INFRACTION REPORT &nbsp;|&nbsp; UNCLASSIFIED &nbsp;|&nbsp; REF: ${report.id}
-    </div>
-  </div>
-  <div class="grid">
-    <div class="cell"><div class="lbl">Service Member</div><div class="val">${report.rank} ${report.name}</div></div>
-    <div class="cell"><div class="lbl">Unit</div><div class="val">${report.unit||'—'}</div></div>
-    <div class="cell"><div class="lbl">Installation</div><div class="val">${report.installation||'—'}</div></div>
-    <div class="cell"><div class="lbl">TMO/PPSO Office</div><div class="val">${report.installationOffice||'—'}</div></div>
-    <div class="cell"><div class="lbl">TMO/PPSO Phone</div><div class="val">${report.installationPhone||'—'}</div></div>
-    <div class="cell"><div class="lbl">TSP / Moving Company</div><div class="val">${report.providerName}</div></div>
-    <div class="cell"><div class="lbl">Phase</div><div class="val">${report.phase}</div></div>
-    <div class="cell"><div class="lbl">Reporting Office</div><div class="val">${report.officeName}</div></div>
-    <div class="cell"><div class="lbl">Date</div><div class="val">${report.date}</div></div>
-    <div class="cell"><div class="lbl">Photos Attached</div><div class="val">${(report.infractions||[]).reduce((a,i)=>a+(i.photos||[]).length,0)} image(s)</div></div>
-  </div>
-  <div style="font-size:11px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;">INFRACTIONS (${items.length})</div>
-  <table><thead><tr><th>Code</th><th>Severity</th><th>Infraction / Notes / Photos</th></tr></thead><tbody>${rows}</tbody></table>
-  <div class="foot">Generated by DTSS &nbsp;|&nbsp; DTR Part IV / TOS Requirements &nbsp;|&nbsp; ${report.date}<br>Retain for records. Submit DD Form 1840/1840R for loss/damage claims.</div>
-  </body></html>`;
-}
-
-function printReport() {
-  if (!state.lastReport) return;
-  const html = buildPrintHtml(state.lastReport);
-  const blob = new Blob([html], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank');
-  if (win) win.onload = () => win.print();
-}
-
-function emailReport() {
-  if (!state.lastReport) return;
-  const r = state.lastReport;
-  const body = [
-    `DTSS INFRACTION REPORT — ${r.id}`,
-    `Date: ${r.date}`,
-    ``,
-    `SERVICE MEMBER: ${r.rank} ${r.name}`,
-    `Unit: ${r.unit||'—'}`,
-    `Installation: ${r.installation||'—'}`,
-    `TMO/PPSO Office: ${r.installationOffice||'—'}`,
-    `TMO/PPSO Phone: ${r.installationPhone||'—'}`,
-    `TSP: ${r.providerName}`,
-    `Phase: ${r.phase}`,
-    `Reporting Office: ${r.officeName}`,
-    ``,
-    `INFRACTIONS (${(r.infractions||[]).length}):`,
-    ...(r.infractions||[]).map(i=>`• [${i.code}] ${i.severity.toUpperCase()} — ${i.label}${i.note?' | Note: '+i.note:''}${(i.photos||[]).length?' | '+i.photos.length+' photo(s) attached':''}`),
-    ``,
-    `NOTE: Photos are embedded in the print/PDF version of this report.`,
-    `Generated by DTSS | DTR Part IV / Tender of Service Requirements`,
-  ].join('\n');
-  window.open(`mailto:${r.officeContact}?subject=DTSS Infraction Report ${r.id} — ${r.providerName}&body=${encodeURIComponent(body)}`);
-}
-
-// ════════════════════════════════════════════════════════════
-// RESET
-// ════════════════════════════════════════════════════════════
-
-function resetApp() {
-  state.phase = null;
-  state.checked = {};
-  state.notes = {};
-  state.photos = {};
-  state.globalPhotos = [];
-  state.member = { rank:'', name:'', unit:'', installation:'', installationPhone:'', installationOffice:'', providerName:'' };
-  state.selectedOffice = null;
-  state.reportId = genId();
-  state.lastReport = null;
-  goHome();
-}
-
-// ════════════════════════════════════════════════════════════
-// ADMIN
-// ════════════════════════════════════════════════════════════
-
-function doAdminLogin() {
-  const pin = document.getElementById('f-pin').value;
-  const err = document.getElementById('pin-error');
-  if (pin === ADMIN_PIN) {
-    err.style.display = 'none';
-    state.allReports = loadFromStorage();
-    renderAdminDashboard();
-    showPage('admin');
-  } else {
-    err.textContent = 'Incorrect PIN. Contact your TMO for access.';
-    err.style.display = 'block';
-  }
-}
-
-function renderAdminDashboard() {
-  const reports = state.allReports;
-
-  // Stats
-  const totalCrit = reports.reduce((n,r)=>n+(r.infractions||[]).filter(i=>i.severity==='Critical').length,0);
-  const totalMaj = reports.reduce((n,r)=>n+(r.infractions||[]).filter(i=>i.severity==='Major').length,0);
-  const tsps = new Set(reports.map(r=>r.providerName)).size;
-  document.getElementById('admin-stats').innerHTML = [
-    ['TOTAL REPORTS', reports.length, '#00ff88'],
-    ['CRITICAL FLAGS', totalCrit, '#dc2626'],
-    ['MAJOR FLAGS', totalMaj, '#ea580c'],
-    ['TSPs CITED', tsps, '#a78bfa'],
-  ].map(([lbl,val,col])=>`
-    <div class="stat-card">
-      <div class="stat-val" style="color:${col};">${val}</div>
-      <div class="stat-label">${lbl}</div>
-    </div>`).join('');
-
-  // Filter bar
-  const fb = document.getElementById('filter-bar');
-  fb.innerHTML = `
-    <span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">FILTER:</span>
-    ${['All','Pack & Pickup','Delivery'].map(p=>`<button class="filter-btn${state.filterPhase===p?' active':''}" onclick="setFilter('phase','${p}')">${p}</button>`).join('')}
-    <div class="filter-sep"></div>
-    ${['All','Critical','Major','Minor'].map(s=>`<button class="filter-btn${state.filterSev===s?' active':''}" onclick="setFilter('sev','${s}')">${s}</button>`).join('')}
-    <button class="btn-o btn-sm ml-auto" onclick="refreshAdmin()">↻ REFRESH</button>`;
-
-  renderAdminReports();
-}
-
-function setFilter(type, val) {
-  if (type==='phase') state.filterPhase = val;
-  else state.filterSev = val;
-  renderAdminDashboard();
-}
-
-function refreshAdmin() {
-  state.allReports = loadFromStorage();
-  renderAdminDashboard();
-}
-
-function renderAdminReports() {
-  const filtered = state.allReports.filter(r =>
-    (state.filterPhase==='All' || r.phase===state.filterPhase) &&
-    (state.filterSev==='All' || (r.infractions||[]).some(i=>i.severity===state.filterSev))
-  );
-  const el = document.getElementById('admin-report-list');
-  if (filtered.length===0) {
-    el.innerHTML = `<div style="text-align:center;padding:48px;color:var(--text-dim);font-size:13px;">${state.allReports.length===0?'No reports submitted yet.':'No reports match current filters.'}</div>`;
-    return;
-  }
-  el.innerHTML = filtered.map(r => {
-    const crit = (r.infractions||[]).filter(i=>i.severity==='Critical').length;
-    const maj  = (r.infractions||[]).filter(i=>i.severity==='Major').length;
-    const totalPh = (r.infractions||[]).reduce((a,i)=>a+(i.photos||[]).length,0);
-    const open = state.expandedReport === r.id;
-    const expandedHtml = open ? buildExpandedReport(r) : '';
-    return `<div class="rep-row${open?' open':''}" id="rep-${r.id}" onclick="toggleReport('${r.id}')">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div style="flex:1;">
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:var(--green);letter-spacing:1px;">${r.id}</span>
-            <span class="tag" style="font-size:10px;background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15);color:var(--text-dim);">${(r.phase||'').toUpperCase()}</span>
-            ${crit>0?`<span class="tag sev-critical" style="font-size:10px;">● ${crit} CRITICAL</span>`:''}
-            ${maj>0?`<span class="tag sev-major" style="font-size:10px;">● ${maj} MAJOR</span>`:''}
-            ${totalPh>0?`<span style="font-size:10px;color:var(--text-dim);">📷 ${totalPh}</span>`:''}
-          </div>
-          <div style="font-size:13px;color:#fff;">${r.rank} ${r.name} &nbsp;·&nbsp; <span style="color:var(--text-dim);">${r.providerName}</span></div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${r.date} &nbsp;·&nbsp; ${r.officeName}</div>
-        </div>
-        <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
-          <button class="btn-o btn-sm" onclick="printAdminReport('${r.id}')">🖨 PDF</button>
-          <button class="btn-o btn-sm" onclick="emailAdminReport('${r.id}')">✉ EMAIL</button>
-        </div>
-      </div>
-      ${expandedHtml}
-    </div>`;
-  }).join('');
-}
-
-function buildExpandedReport(r) {
-  const cells = [
-    ['Unit', r.unit||'—'],
-    ['Installation', r.installation||'—'],
-    ['TMO/PPSO Office', r.installationOffice||'—'],
-    ['TMO/PPSO Phone', r.installationPhone||'—'],
-    ['Office Contact', r.officeContact||'—'],
-  ];
-  const infHtml = (r.infractions||[]).map(inf=>{
-    const s = SEV_STYLE[inf.severity];
-    const photoHtml = (inf.photos||[]).length
-      ? `<div class="report-photos" style="margin-top:6px;">${(inf.photos||[]).map(p=>`<div class="report-photo"><img src="${p.dataUrl}" alt="${p.name}"><div class="report-photo-label">📷 ${p.name.slice(0,16)}</div></div>`).join('')}</div>`
-      : '';
-    return `<div style="padding:8px 10px;border-left:${s.borderLeft};margin-bottom:6px;background:${s.bg};">
-      <span class="tag ${s.tagCls}" style="font-size:9px;margin-right:8px;">${inf.code} · ${inf.severity}</span>
-      <span style="font-size:12px;color:#fff;">${inf.label}</span>
-      ${inf.note?`<div style="font-size:11px;color:var(--text-dim);margin-top:4px;font-style:italic;">Note: ${inf.note}</div>`:''}
-      ${photoHtml}
-    </div>`;
-  }).join('');
-
-  return `<div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(0,255,136,.12);" onclick="event.stopPropagation()">
-    <div class="sum-grid" style="margin-bottom:14px;">${cells.map(([k,v])=>`<div class="sum-cell"><div class="sum-cell-label">${k}</div><div class="sum-cell-val">${v}</div></div>`).join('')}</div>
-    ${infHtml}
-  </div>`;
-}
-
-function toggleReport(id) {
-  state.expandedReport = state.expandedReport === id ? null : id;
-  renderAdminReports();
-}
-
-function printAdminReport(id) {
-  const r = state.allReports.find(x=>x.id===id);
-  if (!r) return;
-  const html = buildPrintHtml(r);
-  const blob = new Blob([html],{type:'text/html'});
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url,'_blank');
-  if (win) win.onload = ()=>win.print();
-}
-
-function emailAdminReport(id) {
-  const r = state.allReports.find(x=>x.id===id);
-  if (!r) { showToast('Report not found','warn'); return; }
-  state.lastReport = r;
-  emailReport();
-}
-
-// ════════════════════════════════════════════════════════════
-// TOAST
-// ════════════════════════════════════════════════════════════
-
-let toastTimer;
-function showToast(msg, type='success') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'show ' + type;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>{ el.className=''; }, 3500);
-}
-
-// ════════════════════════════════════════════════════════════
-// INIT
-// ════════════════════════════════════════════════════════════
-
-document.addEventListener('DOMContentLoaded', () => {
-  state.allReports = loadFromStorage();
-});
 </script>
 </body>
 </html>
